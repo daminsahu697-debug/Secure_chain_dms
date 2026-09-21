@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { translations } from '../i18n/translations';
 
-import apiClient from '../utils/apiClient';
+import apiClient from '../services/apiClient';
 
 /**
  * WORM (Write-Once Read-Many) Audit Trail View per Master Spec Section 11

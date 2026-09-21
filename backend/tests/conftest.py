@@ -18,6 +18,11 @@ from app.models.user import User
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 
 
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
+
+
 @pytest.fixture(scope="function")
 def db_session():
     engine = create_engine(

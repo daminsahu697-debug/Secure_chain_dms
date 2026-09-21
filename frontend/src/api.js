@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// The base URL of our FastAPI API Gateway
-const API_URL = 'http://localhost:8000';
+// Use the configured API host, with localhost as the development fallback.
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 const api = axios.create({
   baseURL: API_URL,

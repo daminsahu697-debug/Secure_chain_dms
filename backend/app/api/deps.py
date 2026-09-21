@@ -13,11 +13,11 @@ from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
-security_bearer = HTTPBearer(auto_error=True)
+security_bearer = HTTPBearer(auto_error=False)
 
 
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security_bearer),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_bearer),
     db: Session = Depends(get_db),
 ) -> User:
     """
@@ -29,12 +29,16 @@ def get_current_user(
     5. Checks if user account is active.
     6. Returns authenticated User model instance.
     """
-    token = credentials.credentials
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials or invalid/expired token.",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+    if credentials is None:
+        raise credentials_exception
+
+    token = credentials.credentials
 
     try:
         payload = decode_access_token(token)

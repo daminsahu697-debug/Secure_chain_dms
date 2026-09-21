@@ -209,7 +209,7 @@ function AppContent() {
     try {
       // Fetch personas
       try {
-        const pRes = await fetch('/api/personas');
+        const pRes = await fetch('/api/v1/personas');
         if (pRes.ok) {
           const pData = await pRes.json();
           setPersonas(pData.personas || []);
@@ -224,17 +224,36 @@ function AppContent() {
           const res = await apiClient.get('/documents');
           const rawItems = res?.items || (Array.isArray(res) ? res : []);
 
-          const formattedItems = rawItems.map(d => ({
-            ...d,
-            id: d.id,
-            title: d.title,
-            firNo: d.case_id ? `CASE-${String(d.case_id).substring(0, 8).toUpperCase()}` : `DOC-${String(d.id).substring(0, 8).toUpperCase()}`,
-            sha256: d.sha256_hash || d.sha256 || d.hash || '',
-            status: d.status || (d.is_sealed ? 'LOCKED' : 'PENDING'),
-            version: d.version || '1.0',
-            created_at: d.created_at || d.createdAt,
-            requesterId: d.requester_id || d.uploaded_by || d.created_by || d.authorId,
-          }));
+          const formattedItems = rawItems.map(d => {
+            let cached = {};
+            try {
+              const str = localStorage.getItem(`securechain_doc_meta_${d.id}`);
+              if (str) cached = JSON.parse(str);
+            } catch (_) {}
+
+            const realFirNo = cached.firNo || cached.fir_number || d.fir_number ||
+              (d.title?.startsWith('FIR No.') ? d.title.split(' ')[2]?.split('-')[0]?.trim() : null) ||
+              (d.case_id ? `CASE-${String(d.case_id).substring(0, 8).toUpperCase()}` : `DOC-${String(d.id).substring(0, 8).toUpperCase()}`);
+
+            return {
+              ...d,
+              ...cached,
+              id: d.id,
+              title: d.title || cached.title,
+              caseTitle: d.title || cached.caseTitle || cached.title,
+              firNo: realFirNo,
+              fir_number: realFirNo,
+              district: cached.district || d.district || 'Patna',
+              policeStation: cached.policeStation || d.policeStation || 'Central PS',
+              year: cached.year || d.year || new Date().getFullYear().toString(),
+              sha256: d.sha256_hash || d.sha256 || d.hash || cached.sha256 || '',
+              status: d.status || (d.is_sealed ? 'LOCKED' : 'PENDING'),
+              version: d.version || '1.0',
+              created_at: d.created_at || d.createdAt,
+              dateReported: cached.dateReported || d.created_at || d.createdAt,
+              requesterId: d.requester_id || d.uploaded_by || d.created_by || d.authorId,
+            };
+          });
 
           setDocuments(formattedItems);
 

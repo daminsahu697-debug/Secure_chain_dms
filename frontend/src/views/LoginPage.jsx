@@ -273,7 +273,7 @@ export default function LoginPage({
               <PasswordField
                 id="official-password"
                 name="password"
-                label="Password (Demo: 123456)"
+                label="Password"
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);

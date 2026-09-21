@@ -839,6 +839,12 @@ async def create_edit_request(
         request_id=str(edit_req_id),
     )
 
+    if quorum_res.get("skipped") or quorum_res.get("status") == "OFFLINE":
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Quorum Engine is offline. Edit request could not be created.",
+        )
+
     quorum_req_id = quorum_res.get("request", {}).get("id") or str(edit_req_id)
 
     # 5. Encrypt temporary proposed file bytes before saving to storage (NEVER store plaintext proposals in GCS)
