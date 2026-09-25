@@ -236,6 +236,10 @@ function AppContent() {
               d.case_number ||
               (d.case_id && !String(d.case_id).startsWith('11111111') ? `CASE-${String(d.case_id).substring(0, 8).toUpperCase()}` : `DOC-${String(d.id).substring(0, 8).toUpperCase()}`);
 
+            const activeReq = d.active_edit_request || cached.activeEditRequest;
+            const verNum = d.version_number || d.current_version?.version_number || (d.proposed_version_id ? 2 : 1);
+            const versionStr = d.version || (verNum === 1 ? '1.0' : `1.${verNum - 1}`);
+
             return {
               ...d,
               ...cached,
@@ -249,12 +253,13 @@ function AppContent() {
               year: cached.year || d.year || new Date().getFullYear().toString(),
               sha256: d.sha256_hash || d.sha256 || d.hash || cached.sha256 || '',
               status: d.status || (d.is_sealed ? 'LOCKED' : 'PENDING'),
-              version: d.version || '1.0',
+              version: versionStr,
+              currentVersion: versionStr,
               created_at: d.created_at || d.createdAt,
               dateReported: cached.dateReported || d.created_at || d.createdAt,
-              editRequestId: d.edit_request_id || d.active_edit_request_id || d.active_edit_request?.id || cached.editRequestId,
-              activeEditRequest: d.active_edit_request || cached.activeEditRequest,
-              requesterId: d.active_edit_request?.requester_id || d.requester_id || d.uploaded_by || d.created_by || d.authorId,
+              editRequestId: d.edit_request_id || d.active_edit_request_id || activeReq?.id || cached.editRequestId,
+              activeEditRequest: activeReq,
+              requesterId: activeReq?.requester_id || d.requester_id || d.uploaded_by || d.created_by || d.authorId,
             };
           });
 
@@ -263,9 +268,13 @@ function AppContent() {
           // Calculate metrics dynamically from real backend documents
           const totalDocs = formattedItems.length;
           const locked = formattedItems.filter(d => d.status === 'LOCKED' || d.status === 'APPROVED' || d.is_sealed || d.is_locked).length;
-          const pending = formattedItems.filter(d => d.status === 'PENDING_AMENDMENT' || d.status === 'PENDING_QUORUM' || d.status === 'PENDING').length;
+          const pending = formattedItems.filter(d => {
+            const reqStatus = d.activeEditRequest?.status;
+            if (reqStatus === 'APPROVED' || reqStatus === 'REJECTED') return false;
+            return reqStatus === 'PENDING' || d.status === 'PENDING_QUORUM' || d.status === 'PENDING_AMENDMENT';
+          }).length;
           const rejected = formattedItems.filter(d => d.status === 'REJECTED' || d.status === 'TAMPER_DETECTED').length;
-          const totalVerBlocks = formattedItems.reduce((acc, d) => acc + (d.version_count || d.version_number || 1), 0);
+          const totalVerBlocks = formattedItems.reduce((acc, d) => acc + (d.version_count || d.version_number || (d.currentVersion === '1.1' ? 2 : 1)), 0);
 
           setMetrics({
             totalDocuments: totalDocs,

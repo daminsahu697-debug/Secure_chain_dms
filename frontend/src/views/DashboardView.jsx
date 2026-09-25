@@ -97,6 +97,12 @@ export default function DashboardView({
   // Define cadre sidebar tabs strictly scoped to each role (Sections 6, 7, 8, 9, 10, 23)
   const getSidebarTabs = () => {
     const myCasesCount = documents.filter(d => (d.requesterId || d.uploaded_by || d.created_by) === activeUser?.id).length;
+    const pendingCount = documents.filter(d => {
+      const activeReq = d.activeEditRequest || d.active_edit_request || {};
+      const status = activeReq.status || d.status;
+      if (status === 'APPROVED' || status === 'REJECTED' || status === 'LOCKED') return false;
+      return status === 'PENDING' || status === 'PENDING_QUORUM' || status === 'PENDING_AMENDMENT';
+    }).length;
 
     switch (role) {
       case 'POLICE':
@@ -104,7 +110,7 @@ export default function DashboardView({
           { id: 'overview', label: 'Home', icon: Home, badge: null },
           { id: 'cases', label: 'My Cases', icon: FolderArchive, badge: myCasesCount || null },
           { id: 'upload', label: 'Upload New FIR', icon: UploadCloud, badge: null },
-          { id: 'my_requests', label: 'My Requests (Quorum Status)', icon: FileCheck, badge: documents.filter(d => d.status === 'PENDING_QUORUM').length || null },
+          { id: 'my_requests', label: 'My Requests (Quorum Status)', icon: FileCheck, badge: pendingCount || null },
           { id: 'settings', label: 'Settings', icon: Settings, badge: null }
         ];
       case 'JUDICIAL':
@@ -112,7 +118,7 @@ export default function DashboardView({
           { id: 'overview', label: 'Home', icon: Home, badge: null },
           { id: 'pending', label: 'Cases Pending Verification', icon: FolderArchive, badge: documents.length },
           { id: 'upload_verdict', label: 'Upload Verdict', icon: Gavel, badge: null },
-          { id: 'approvals', label: 'Quorum Approval', icon: FileCheck2, badge: documents.filter(d => d.status === 'PENDING_QUORUM').length || null },
+          { id: 'approvals', label: 'Quorum Approval', icon: FileCheck2, badge: pendingCount || null },
           { id: 'audit', label: 'WORM Audit Log (read-only)', icon: ScrollText, badge: null },
           { id: 'settings', label: 'Settings', icon: Settings, badge: null }
         ];
@@ -123,8 +129,8 @@ export default function DashboardView({
           { id: 'upload', label: 'Upload New Report', icon: UploadCloud, badge: null },
           { id: 'ocr', label: 'OCR/Analysis Queue', icon: Layers, badge: 3 },
           { id: 'custody', label: 'Evidence Chain of Custody', icon: PackageCheck, badge: '2 Sealed' },
-          { id: 'my_requests', label: 'My Requests (Quorum Status)', icon: FileCheck, badge: documents.filter(d => d.status === 'PENDING_QUORUM').length || null },
-          { id: 'approvals', label: 'Quorum Approval', icon: FileCheck2, badge: documents.filter(d => d.status === 'PENDING_QUORUM').length || null },
+          { id: 'my_requests', label: 'My Requests (Quorum Status)', icon: FileCheck, badge: pendingCount || null },
+          { id: 'approvals', label: 'Quorum Approval', icon: FileCheck2, badge: pendingCount || null },
           { id: 'settings', label: 'Settings', icon: Settings, badge: null }
         ];
       case 'APPROVAL_OFFICER':
@@ -132,8 +138,8 @@ export default function DashboardView({
           { id: 'overview', label: 'Home', icon: Home, badge: null },
           { id: 'cases', label: 'My Cases', icon: FolderArchive, badge: myCasesCount || null },
           { id: 'upload', label: 'Upload New FIR', icon: UploadCloud, badge: null },
-          { id: 'approvals', label: 'Quorum Approval', icon: FileCheck2, badge: documents.filter(d => d.status === 'PENDING_QUORUM').length || null },
-          { id: 'my_requests', label: 'My Requests (Quorum Status)', icon: FileCheck, badge: documents.filter(d => d.status === 'PENDING_QUORUM').length || null },
+          { id: 'approvals', label: 'Quorum Approval', icon: FileCheck2, badge: pendingCount || null },
+          { id: 'my_requests', label: 'My Requests (Quorum Status)', icon: FileCheck, badge: pendingCount || null },
           { id: 'settings', label: 'Settings', icon: Settings, badge: null }
         ];
       default:

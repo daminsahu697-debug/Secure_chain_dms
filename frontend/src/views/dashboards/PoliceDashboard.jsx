@@ -61,7 +61,12 @@ export default function PoliceDashboard({
 
   // Filter strictly to this officer's own cases by requesterId
   const myCases = documents.filter(d => (d.requesterId || d.uploaded_by || d.created_by) === activeUser?.id);
-  const pendingRequests = myCases.filter(d => d.status === 'PENDING_QUORUM');
+  const pendingRequests = myCases.filter(d => {
+    const activeReq = d.activeEditRequest || d.active_edit_request || {};
+    const status = activeReq.status || d.status;
+    if (status === 'APPROVED' || status === 'REJECTED' || status === 'LOCKED') return false;
+    return status === 'PENDING' || status === 'PENDING_QUORUM' || status === 'PENDING_AMENDMENT';
+  });
 
   const custodyEvents = [
     { step: "Seizure Memo Form No. 24 Issued", time: "14/08/2024 10:45 IST", actor: "Police Official (Investigating Officer)", status: "Completed" },
@@ -290,26 +295,55 @@ export default function PoliceDashboard({
             </div>
           ) : (
             <div className="space-y-5">
-              {pendingRequests.map(doc => {
-                const session = doc.quorumSession || {
-                  threshold: 2,
-                  totalEligible: 3,
-                  approvalCount: 1,
+              {myCases.filter(d => !!(d.editRequestId || d.activeEditRequest || d.active_edit_request)).map(doc => {
+                const activeReq = doc.activeEditRequest || doc.active_edit_request || doc.quorum_data?.request || doc.quorum_data || {};
+                const threshold = activeReq.threshold_m || activeReq.threshold || doc.quorumSession?.threshold || 2;
+                const totalEligible = activeReq.pool_size_n || activeReq.totalEligible || doc.quorumSession?.totalEligible || 3;
+                const votes = activeReq.votes || activeReq.quorum_data?.votes || doc.quorumSession?.votes || [];
+                const voteCounts = activeReq.vote_counts || activeReq.quorum_data?.vote_counts;
+
+                const approvalCount = voteCounts?.approve !== undefined 
+                  ? voteCounts.approve 
+                  : (doc.quorumSession?.approvalCount !== undefined 
+                      ? doc.quorumSession.approvalCount 
+                      : votes.filter(v => (v.vote_choice || v.vote) === 'APPROVE').length);
+
+                const poolMembers = activeReq.approval_pool || [];
+
+                const approverSlots = (doc.quorumSession?.approverSlots && doc.quorumSession.approverSlots.length > 0)
+                  ? doc.quorumSession.approverSlots
+                  : Array.from({ length: totalEligible }, (_, i) => {
+                      const member = poolMembers[i];
+                      const voteObj = votes[i];
+                      const hasVoted = !!voteObj;
+                      const voteChoice = voteObj?.vote_choice || voteObj?.vote || null;
+                      const title = member?.pseudonym || voteObj?.pseudonym || `Approver ${i + 1}`;
+                      return {
+                        slotIndex: i + 1,
+                        title,
+                        hasVoted,
+                        vote: voteChoice
+                      };
+                    });
+
+                const session = {
+                  threshold,
+                  totalEligible,
+                  approvalCount,
                   poolLabel: doc.jurisdictionalPool || "District Police Review Pool",
-                  approverSlots: [
-                    { slotIndex: 1, title: "Approver 1", hasVoted: true, vote: "APPROVE" },
-                    { slotIndex: 2, title: "Approver 2", hasVoted: false, vote: null },
-                    { slotIndex: 3, title: "Approver 3", hasVoted: false, vote: null }
-                  ]
+                  approverSlots
                 };
-                const approvalCount = session.approvalCount || 1;
-                const threshold = session.threshold || 2;
                 const progressPct = Math.min(100, Math.round((approvalCount / threshold) * 100));
+                const isReqApproved = activeReq.status === 'APPROVED' || doc.status === 'APPROVED' || doc.currentVersion === '1.1';
 
                 return (
                   <div 
                     key={doc.id}
-                    className="p-6 rounded-3xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/30 dark:bg-amber-950/20 space-y-4 shadow-xs"
+                    className={`p-6 rounded-3xl border space-y-4 shadow-xs ${
+                      isReqApproved 
+                        ? 'border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/30 dark:bg-emerald-950/20' 
+                        : 'border-amber-200 dark:border-amber-900/60 bg-amber-50/30 dark:bg-amber-950/20'
+                    }`}
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-200/50 dark:border-amber-900/40 pb-3">
                       <div className="flex items-center gap-2">
@@ -317,14 +351,20 @@ export default function PoliceDashboard({
                           {doc.firNo}
                         </span>
                         <span className="text-xs font-bold text-amber-700 dark:text-amber-300">
-                          Draft v{doc.draftVersion || '1.1'}
+                          Draft v{doc.draftVersion || doc.currentVersion || '1.1'}
                         </span>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
-                          🔴 Pending Quorum
-                        </span>
+                        {isReqApproved ? (
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                            🟢 Consensus Approved & Sealed
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                            🔴 Pending Quorum
+                          </span>
+                        )}
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center gap-1">
                           <Lock className="w-3 h-3 text-amber-600" />
                           <span>Rule 4B Self-Approval Locked</span>
