@@ -48,7 +48,7 @@ async def test_successful_ocr_scan(client):
         res = await client.scan_document(
             file_bytes=b"%PDF-mock-bytes",
             filename="fir_test.pdf",
-            officer_id="EMP001",
+            officer_id="POL-IO-001",
             case_mode="Register New FIR (first time)",
             is_fir=True,
         )

@@ -10,7 +10,7 @@ TEST_CASE_ID = "11111111-1111-4111-8111-111111111111"
 TEST_DOC_ID = "22222222-2222-4222-8222-222222222222"
 
 
-def get_auth_headers(client, employee_id="EMP001", password="demo-password"):
+def get_auth_headers(client, employee_id="POL-IO-001", password="demo-password"):
     login_resp = client.post(
         "/api/v1/auth/login",
         json={"employee_id": employee_id, "password": password},

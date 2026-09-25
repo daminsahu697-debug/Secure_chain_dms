@@ -16,7 +16,7 @@ TEST_CASE_ID = "11111111-1111-4111-8111-111111111111"
 def get_auth_headers(client):
     login_resp = client.post(
         "/api/v1/auth/login",
-        json={"employee_id": "EMP001", "password": "demo-password"},
+        json={"employee_id": "POL-IO-001", "password": "demo-password"},
     )
     token = login_resp.json()["access_token"]
     user_id = login_resp.json()["user"]["id"]

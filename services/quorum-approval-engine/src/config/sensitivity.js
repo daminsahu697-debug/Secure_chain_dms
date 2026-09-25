@@ -6,21 +6,21 @@
 const SENSITIVITY_TIERS = {
   LOW: {
     tier: 'LOW',
-    threshold_m: 1,
-    pool_size_n: 1,
-    description: '1-of-1 threshold for low-impact changes'
+    threshold_m: 2,
+    pool_size_n: 3,
+    description: '2-of-3 threshold configuration (Demo)'
   },
   MEDIUM: {
     tier: 'MEDIUM',
     threshold_m: 2,
     pool_size_n: 3,
-    description: '2-of-3 threshold for medium-impact changes'
+    description: '2-of-3 threshold configuration (Demo)'
   },
   HIGH: {
     tier: 'HIGH',
-    threshold_m: 3,
-    pool_size_n: 5,
-    description: '3-of-5 threshold for high-impact changes'
+    threshold_m: 2,
+    pool_size_n: 3,
+    description: '2-of-3 threshold configuration (Demo)'
   }
 };
 

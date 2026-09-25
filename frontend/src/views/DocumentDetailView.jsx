@@ -639,7 +639,7 @@ export default function DocumentDetailView({
             </span>
 
             {/* Amber "Request Edit / Add Update" Button */}
-            {isLocked && (
+            {isLocked && activeUser && !['JUDICIAL', 'FORENSIC', 'AUDITOR', 'CITIZEN'].includes(activeUser.portalRole) && (
               <button
                 onClick={() => setEditModalOpen(true)}
                 className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-xs shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer"

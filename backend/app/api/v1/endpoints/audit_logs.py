@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, require_auditor
 from app.models.user import User
 from app.models.audit_log import AuditLog
 from app.models.case import Case
@@ -35,7 +35,7 @@ def _format_action(event_type: str) -> str:
 @router.get("/")
 async def get_all_audit_logs(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_auditor),
     case_id: Optional[str] = None,
     limit: int = 100,
 ):

@@ -54,9 +54,9 @@ def test_user():
 @pytest.fixture
 def test_approvers():
     return [
-        User(id=uuid.uuid4(), email="app1@test.com", full_name="Approver 1", employee_id="EMP_APP1", is_active=True),
-        User(id=uuid.uuid4(), email="app2@test.com", full_name="Approver 2", employee_id="EMP_APP2", is_active=True),
-        User(id=uuid.uuid4(), email="app3@test.com", full_name="Approver 3", employee_id="EMP_APP3", is_active=True),
+        User(id=uuid.uuid4(), email="app1@test.com", full_name="Approver 1", employee_id="EMP_APP1", role="APPROVAL_OFFICER", is_active=True),
+        User(id=uuid.uuid4(), email="app2@test.com", full_name="Approver 2", employee_id="EMP_APP2", role="APPROVAL_OFFICER", is_active=True),
+        User(id=uuid.uuid4(), email="app3@test.com", full_name="Approver 3", employee_id="EMP_APP3", role="APPROVAL_OFFICER", is_active=True),
     ]
 
 

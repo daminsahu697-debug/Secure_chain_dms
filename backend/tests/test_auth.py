@@ -10,21 +10,21 @@ TEST_DOC_ID = "22222222-2222-4222-8222-222222222222"
 def test_1_valid_login(client):
     response = client.post(
         "/api/v1/auth/login",
-        json={"employee_id": "EMP001", "password": "demo-password"},
+        json={"employee_id": "POL-IO-001", "password": "demo-password"},
     )
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
     assert data["token_type"] == "bearer"
-    assert data["user"]["employee_id"] == "EMP001"
-    assert data["user"]["role"] == "OFFICER"
+    assert data["user"]["employee_id"] == "POL-IO-001"
+    assert data["user"]["role"] == "POLICE"
     assert "hashed_password" not in data["user"]
 
 
 def test_2_wrong_password(client):
     response = client.post(
         "/api/v1/auth/login",
-        json={"employee_id": "EMP001", "password": "wrong-password"},
+        json={"employee_id": "POL-IO-001", "password": "wrong-password"},
     )
     assert response.status_code == 401
     assert "Invalid credentials" in response.json()["detail"]
@@ -66,7 +66,7 @@ def test_6_invalid_token(client):
 
 def test_7_expired_token(client):
     expired_jwt = create_access_token(
-        subject="EMP001",
+        subject="POL-IO-001",
         expires_delta=timedelta(seconds=-3600),
     )
     response = client.get(
@@ -80,7 +80,7 @@ def test_7_expired_token(client):
 def test_8_auth_me_valid_token(client):
     login_resp = client.post(
         "/api/v1/auth/login",
-        json={"employee_id": "EMP001", "password": "demo-password"},
+        json={"employee_id": "POL-IO-001", "password": "demo-password"},
     )
     token = login_resp.json()["access_token"]
 
@@ -90,8 +90,8 @@ def test_8_auth_me_valid_token(client):
     )
     assert response.status_code == 200
     user_data = response.json()
-    assert user_data["employee_id"] == "EMP001"
-    assert user_data["role"] == "OFFICER"
+    assert user_data["employee_id"] == "POL-IO-001"
+    assert user_data["role"] == "POLICE"
     assert "hashed_password" not in user_data
 
 
@@ -106,7 +106,7 @@ def test_9_protected_document_endpoint(client):
     # With valid token -> 200
     login_resp = client.post(
         "/api/v1/auth/login",
-        json={"employee_id": "EMP001", "password": "demo-password"},
+        json={"employee_id": "POL-IO-001", "password": "demo-password"},
     )
     token = login_resp.json()["access_token"]
 
@@ -126,7 +126,7 @@ def test_9_protected_document_endpoint(client):
 def test_10_officer_role_access(client):
     login_resp = client.post(
         "/api/v1/auth/login",
-        json={"employee_id": "EMP001", "password": "demo-password"},
+        json={"employee_id": "POL-IO-001", "password": "demo-password"},
     )
     token = login_resp.json()["access_token"]
 
@@ -141,7 +141,7 @@ def test_10_officer_role_access(client):
 def test_11_reviewer_role_access(client):
     login_resp = client.post(
         "/api/v1/auth/login",
-        json={"employee_id": "EMP002", "password": "demo-password"},
+        json={"employee_id": "JUD-JDG-001", "password": "demo-password"},
     )
     token = login_resp.json()["access_token"]
 
@@ -169,10 +169,10 @@ def test_12_admin_role_access(client):
 
 
 def test_13_unauthorized_role_access(client):
-    # EMP001 (OFFICER) trying to access ADMIN-only endpoint
+    # POL-IO-001 (OFFICER) trying to access ADMIN-only endpoint
     login_resp = client.post(
         "/api/v1/auth/login",
-        json={"employee_id": "EMP001", "password": "demo-password"},
+        json={"employee_id": "POL-IO-001", "password": "demo-password"},
     )
     token = login_resp.json()["access_token"]
 
@@ -196,7 +196,7 @@ def test_health_check_endpoint(client):
 def test_logout_endpoint(client):
     login_resp = client.post(
         "/api/v1/auth/login",
-        json={"employee_id": "EMP001", "password": "demo-password"},
+        json={"employee_id": "POL-IO-001", "password": "demo-password"},
     )
     token = login_resp.json()["access_token"]
 

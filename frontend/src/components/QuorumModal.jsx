@@ -137,6 +137,7 @@ export default function QuorumModal({
   
   const percentage = Math.round((approvalCount / threshold) * 100);
   const thresholdMet = status === 'APPROVED' || approvalCount >= threshold;
+  const isApprovalOfficer = activeUser?.role === 'APPROVAL_OFFICER';
 
   // Check Self-Approval Conflict (Rule 4B)
   const requesterId = requestDetails?.requester_id || doc?.requester_id || doc?.requesterId || doc?.uploaded_by;
@@ -443,22 +444,22 @@ export default function QuorumModal({
                     </p>
                     <div className="flex justify-center gap-2">
                       <button
-                        onClick={() => onSwitchUser && onSwitchUser('JUD-JDG-001')}
+                        onClick={() => onSwitchUser && onSwitchUser('APP001')}
                         className="px-3 py-1.5 bg-[#4FA8E0] hover:bg-[#3B97D1] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1"
                       >
-                        <span>Switch to Approver 1 (Judge)</span>
+                        <span>Switch to Approver 1 (APP001)</span>
                         <ArrowRight className="w-3 h-3" />
                       </button>
                       <button
-                        onClick={() => onSwitchUser && onSwitchUser('FOR-EXP-001')}
+                        onClick={() => onSwitchUser && onSwitchUser('APP002')}
                         className="px-3 py-1.5 bg-[#2E7D32] hover:bg-[#1B5E20] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1"
                       >
-                        <span>Switch to Approver 2 (Forensic Officer)</span>
+                        <span>Switch to Approver 2 (APP002)</span>
                         <ArrowRight className="w-3 h-3" />
                       </button>
                     </div>
                   </div>
-                ) : (
+                ) : isApprovalOfficer ? (
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => handleVote('APPROVE')}
@@ -476,6 +477,11 @@ export default function QuorumModal({
                     >
                       <span>{t.castVoteReject}</span>
                     </button>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-red-50 text-red-700 text-xs rounded-xl text-center border border-red-200">
+                    <ShieldAlert className="w-4 h-4 inline-block mr-1 mb-0.5" />
+                    Approval authority restricted to authorized approval officers.
                   </div>
                 )}
               </div>

@@ -138,7 +138,7 @@ def test_7_storage_failure_handling(gcs_adapter):
 def test_8_upload_rollback_cleanup(client):
     login_resp = client.post(
         "/api/v1/auth/login",
-        json={"employee_id": "EMP001", "password": "demo-password"},
+        json={"employee_id": "POL-IO-001", "password": "demo-password"},
     )
     token = login_resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
@@ -168,7 +168,7 @@ def test_8_upload_rollback_cleanup(client):
 def test_9_authenticated_gcs_document_upload(client):
     login_resp = client.post(
         "/api/v1/auth/login",
-        json={"employee_id": "EMP001", "password": "demo-password"},
+        json={"employee_id": "POL-IO-001", "password": "demo-password"},
     )
     token = login_resp.json()["access_token"]
     user_id = login_resp.json()["user"]["id"]
@@ -208,7 +208,7 @@ def test_9_authenticated_gcs_document_upload(client):
 def test_10_authenticated_gcs_document_download(client):
     login_resp = client.post(
         "/api/v1/auth/login",
-        json={"employee_id": "EMP001", "password": "demo-password"},
+        json={"employee_id": "POL-IO-001", "password": "demo-password"},
     )
     token = login_resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
@@ -228,7 +228,7 @@ def test_10_authenticated_gcs_document_download(client):
 def test_11_gcs_document_integrity_verification(client):
     login_resp = client.post(
         "/api/v1/auth/login",
-        json={"employee_id": "EMP001", "password": "demo-password"},
+        json={"employee_id": "POL-IO-001", "password": "demo-password"},
     )
     token = login_resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}

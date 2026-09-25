@@ -647,6 +647,12 @@ def download_document(
                         expected_doc_hash=version.doc_hash,
                     )
             except Exception as err:
+                if "Integrity" in str(err) or "Hash mismatch" in str(err) or "tampered" in str(err):
+                    logger.error(f"Security/Integrity violation for doc {doc.id}: {err}")
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Security integrity verification failed: {str(err)}",
+                    )
                 logger.warning(f"Storage / Decryption error for doc {doc.id}: {err}")
 
     if not decrypted_bytes:
@@ -824,6 +830,12 @@ async def create_edit_request(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if current_user.role and current_user.role in ("JUDICIAL", "FORENSIC"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Judges and Forensic Officers are not authorized to create edit requests.",
+        )
+
     try:
         doc_uuid = uuid.UUID(document_id) if isinstance(document_id, str) else document_id
     except (ValueError, AttributeError):
@@ -1083,6 +1095,12 @@ async def cast_edit_request_vote(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if not current_user.role or current_user.role != "APPROVAL_OFFICER":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Approval authority restricted to authorized approval officers.",
+        )
+
     edit_req = _get_edit_request_or_fallback(db, document_id, request_id)
     quorum_req_id = getattr(edit_req, "quorum_request_id", None) or str(edit_req.id)
 
@@ -1203,6 +1221,12 @@ async def finalize_edit_request(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if current_user.role and current_user.role in ("JUDICIAL", "FORENSIC"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Judges and Forensic Officers are not authorized to finalize amendments.",
+        )
+
     edit_req = _get_edit_request_or_fallback(db, document_id, request_id)
     if not edit_req:
         raise HTTPException(

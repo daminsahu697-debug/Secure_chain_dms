@@ -325,9 +325,9 @@ async def test_12_approved_state_validation(quorum_client_instance):
 async def test_13_requester_excluded_from_eligible_approvers(quorum_client_instance):
     requester_uuid = uuid.uuid4()
     user1 = User(id=requester_uuid, employee_id="EMP_REQ", full_name="Requester User", is_active=True)
-    user2 = User(id=uuid.uuid4(), employee_id="EMP_APP1", full_name="Approver 1", is_active=True)
-    user3 = User(id=uuid.uuid4(), employee_id="EMP_APP2", full_name="Approver 2", is_active=True)
-    user4 = User(id=uuid.uuid4(), employee_id="EMP_APP3", full_name="Approver 3", is_active=True)
+    user2 = User(id=uuid.uuid4(), employee_id="EMP_APP1", full_name="Approver 1", role="APPROVAL_OFFICER", is_active=True)
+    user3 = User(id=uuid.uuid4(), employee_id="EMP_APP2", full_name="Approver 2", role="APPROVAL_OFFICER", is_active=True)
+    user4 = User(id=uuid.uuid4(), employee_id="EMP_APP3", full_name="Approver 3", role="APPROVAL_OFFICER", is_active=True)
 
     mock_db = MagicMock()
     mock_query = MagicMock()

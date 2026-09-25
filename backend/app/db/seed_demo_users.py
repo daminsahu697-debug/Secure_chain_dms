@@ -26,6 +26,30 @@ DEMO_USERS_SPEC = [
         "email": "forensic@securechain.gov.in",
         "role": "FORENSIC",
     },
+    {
+        "employee_id": "APP001",
+        "name": "Approval Officer 1",
+        "email": "app001@securechain.gov.in",
+        "role": "APPROVAL_OFFICER",
+    },
+    {
+        "employee_id": "APP002",
+        "name": "Approval Officer 2",
+        "email": "app002@securechain.gov.in",
+        "role": "APPROVAL_OFFICER",
+    },
+    {
+        "employee_id": "APP003",
+        "name": "Approval Officer 3",
+        "email": "app003@securechain.gov.in",
+        "role": "APPROVAL_OFFICER",
+    },
+    {
+        "employee_id": "ADMIN001",
+        "name": "System Administrator",
+        "email": "admin@securechain.gov.in",
+        "role": "SYSTEM_ADMIN",
+    },
 ]
 
 

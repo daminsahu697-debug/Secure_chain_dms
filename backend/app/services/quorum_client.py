@@ -179,11 +179,11 @@ class QuorumClient:
             u_id_str = str(u.id)
             if u_id_str == req_str:
                 continue
-            eligible_ids.append(u_id_str)
+            if u.role and u.role == "APPROVAL_OFFICER":
+                eligible_ids.append(u_id_str)
 
-        # Pool size N based on sensitivity: LOW=1, MEDIUM=3, HIGH=5
-        sens_upper = (sensitivity or "MEDIUM").upper()
-        pool_n = 1 if sens_upper == "LOW" else (3 if sens_upper == "MEDIUM" else 5)
+        # Pool size N configured to 3 for the demo
+        pool_n = 3
         effective_n = min(pool_n, len(eligible_ids))
 
         return eligible_ids[:effective_n]

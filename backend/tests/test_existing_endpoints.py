@@ -38,10 +38,10 @@ def test_unauthenticated_document_endpoints_reject(client):
 
 
 def test_authenticated_document_workflow(client):
-    # 1. Login to get token for EMP001
+    # 1. Login to get token for POL-IO-001
     login_resp = client.post(
         "/api/v1/auth/login",
-        json={"employee_id": "EMP001", "password": "demo-password"},
+        json={"employee_id": "POL-IO-001", "password": "demo-password"},
     )
     assert login_resp.status_code == 200
     token = login_resp.json()["access_token"]
@@ -118,12 +118,12 @@ def test_authenticated_document_workflow(client):
 
 def test_anti_impersonation_on_upload(client):
     """
-    Verifies that a user logged in as EMP001 cannot impersonate another user
+    Verifies that a user logged in as POL-IO-001 cannot impersonate another user
     even if the client sends an 'uploaded_by' form field. The system must strictly record current_user.id.
     """
     login_resp = client.post(
         "/api/v1/auth/login",
-        json={"employee_id": "EMP001", "password": "demo-password"},
+        json={"employee_id": "POL-IO-001", "password": "demo-password"},
     )
     token = login_resp.json()["access_token"]
     user_id = login_resp.json()["user"]["id"]

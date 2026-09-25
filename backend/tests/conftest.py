@@ -38,7 +38,7 @@ def db_session():
     # Seed demo users
     seed_demo_users(db, password="demo-password")
 
-    emp001 = db.query(User).filter(User.employee_id == "EMP001").first()
+    emp001 = db.query(User).filter(User.employee_id == "POL-IO-001").first()
 
     # Inactive user
     inactive = User(

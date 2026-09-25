@@ -98,6 +98,7 @@ def require_roles(*allowed_roles: str) -> Callable:
 
 
 # Convenient pre-defined role dependencies
-require_officer = require_roles("OFFICER", "ADMIN")
-require_reviewer = require_roles("REVIEWER", "ADMIN")
-require_admin = require_roles("ADMIN")
+require_officer = require_roles("POLICE", "SYSTEM_ADMIN")
+require_reviewer = require_roles("JUDICIAL", "SYSTEM_ADMIN")
+require_admin = require_roles("SYSTEM_ADMIN")
+require_auditor = require_roles("JUDICIAL", "AUDITOR", "SYSTEM_ADMIN")
