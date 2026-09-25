@@ -35,6 +35,22 @@ if settings.CORS_ORIGINS:
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
 
+@app.on_event("startup")
+def on_startup():
+    """Ensure all core demo personas (APP001, APP002, APP003, POL-IO-001, etc.) are seeded into DB on startup."""
+    try:
+        from app.db.session import SessionLocal
+        from app.db.seed_demo_users import seed_demo_users
+        db = SessionLocal()
+        try:
+            seed_demo_users(db)
+            logger.info("Permanently seeded demo users & approval officers into database.")
+        finally:
+            db.close()
+    except Exception as err:
+        logger.warning(f"Demo user startup seeding notice: {err}")
+
+
 # Basic error handling for database connection / query issues
 @app.exception_handler(OperationalError)
 async def db_operational_exception_handler(request: Request, exc: OperationalError):

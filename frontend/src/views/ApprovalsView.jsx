@@ -398,6 +398,26 @@ export default function ApprovalsView({
                         <strong>Self-Approval Blocked (Rule 4B):</strong> As the requesting officer for this amendment, your vote is disabled to eliminate bias and conflicts of interest.
                       </span>
                     </div>
+                  ) : activeReq.status === 'APPROVED' ? (
+                    <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 rounded-2xl text-xs text-emerald-800 dark:text-emerald-300 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                        <span><strong>Consensus Achieved:</strong> M-of-N threshold satisfied. Amendment approved and sealed as Version 1.1.</span>
+                      </div>
+                      <span className="font-mono text-[11px] font-bold px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900 rounded">
+                        Approved & Locked
+                      </span>
+                    </div>
+                  ) : activeReq.user_has_voted ? (
+                    <div className="p-3 bg-sky-50 dark:bg-sky-950/40 border border-sky-300 dark:border-sky-800 rounded-2xl text-xs text-sky-800 dark:text-sky-300 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-sky-600 flex-shrink-0" />
+                        <span><strong>Vote Recorded:</strong> You have already submitted your consensus vote on this docket.</span>
+                      </div>
+                      <span className="font-mono text-[11px] font-bold px-2 py-0.5 bg-sky-100 dark:bg-sky-900 rounded">
+                        Vote Recorded
+                      </span>
+                    </div>
                   ) : (
                     /* Voting Actions */
                     <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">

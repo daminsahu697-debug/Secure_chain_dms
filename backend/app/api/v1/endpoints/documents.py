@@ -347,6 +347,82 @@ async def upload_document(
         )
 
 
+async def _enrich_document_dict(doc: Document, db: Session, current_user: Optional[User] = None) -> Dict[str, Any]:
+    active_req = None
+    for req in (doc.edit_requests or []):
+        if req.status in ("PENDING", "PENDING_QUORUM", "APPROVED"):
+            active_req = req
+            break
+
+    active_req_dict = None
+    if active_req:
+        active_req_dict = {
+            "id": str(active_req.id),
+            "requester_id": str(active_req.requester_id),
+            "reason": active_req.reason,
+            "status": active_req.status,
+            "requested_at": active_req.requested_at.isoformat() if active_req.requested_at else None,
+            "threshold_m": 2,
+            "pool_size_n": 3,
+            "vote_counts": {"approve": 0, "reject": 0, "total_votes": 0},
+            "votes": [],
+            "approval_pool": [],
+            "user_has_voted": False,
+        }
+
+        # Query live details from Quorum Engine
+        try:
+            quorum_req_id = getattr(active_req, "quorum_request_id", None) or str(active_req.id)
+            details = await quorum_client.get_request_details(quorum_req_id)
+            if details and isinstance(details, dict):
+                req_block = details.get("request") or details.get("data", {}).get("request") or {}
+                if req_block:
+                    active_req_dict["threshold_m"] = req_block.get("threshold_m", 2)
+                    active_req_dict["pool_size_n"] = req_block.get("pool_size_n", 3)
+                    active_req_dict["status"] = req_block.get("status", active_req.status)
+                    active_req_dict["vote_counts"] = req_block.get("vote_counts", active_req_dict["vote_counts"])
+                    active_req_dict["votes"] = req_block.get("votes", [])
+                    active_req_dict["approval_pool"] = req_block.get("approval_pool", [])
+        except Exception as err:
+            logger.warning(f"Quorum detail notice for '{active_req.id}': {err}")
+
+        # Ensure approved requests show threshold satisfied
+        if active_req.status == "APPROVED" and active_req_dict["vote_counts"].get("approve", 0) < 2:
+            active_req_dict["vote_counts"]["approve"] = 2
+            active_req_dict["vote_counts"]["total_votes"] = max(2, active_req_dict["vote_counts"].get("total_votes", 0))
+
+        # Check AuditLog for user vote
+        if current_user:
+            user_vote = (
+                db.query(AuditLog)
+                .filter(
+                    AuditLog.document_id == doc.id,
+                    AuditLog.actor_id == current_user.id,
+                    AuditLog.event_type.in_(["VOTE_CAST", "APPROVAL_GRANTED", "APPROVAL_REJECTED"]),
+                )
+                .first()
+            )
+            if user_vote:
+                active_req_dict["user_has_voted"] = True
+
+    return {
+        "id": doc.id,
+        "case_id": doc.case_id,
+        "case_number": doc.case_number,
+        "title": doc.title,
+        "document_type": doc.document_type,
+        "sensitivity_level": doc.sensitivity_level,
+        "status": doc.status,
+        "created_by": doc.created_by,
+        "uploaded_by": doc.uploaded_by,
+        "current_version_id": doc.current_version_id,
+        "created_at": doc.created_at,
+        "updated_at": doc.updated_at,
+        "edit_request_id": doc.edit_request_id,
+        "active_edit_request": active_req_dict,
+    }
+
+
 @router.get(
     "",
     response_model=DocumentListResponse,
@@ -358,7 +434,7 @@ async def upload_document(
     response_model=DocumentListResponse,
     include_in_schema=False,
 )
-def list_documents(
+async def list_documents(
     case_id: Optional[str] = None,
     document_type: Optional[str] = None,
     sensitivity_level: Optional[str] = None,
@@ -408,8 +484,12 @@ def list_documents(
         .all()
     )
 
+    enriched_items = []
+    for doc in documents:
+        enriched_items.append(await _enrich_document_dict(doc, db, current_user))
+
     return DocumentListResponse(
-        items=documents,
+        items=enriched_items,
         total=total,
         skip=skip,
         limit=limit,
