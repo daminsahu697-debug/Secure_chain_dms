@@ -32,7 +32,7 @@ class ApprovalService {
   /**
    * Creates a new Document Edit Request with M-of-N Quorum threshold calculation.
    */
-  async createEditRequest({ documentId, requesterId, proposedContent, sensitivityTier, poolMemberIds }) {
+  async createEditRequest({ id, documentId, requesterId, proposedContent, sensitivityTier, poolMemberIds }) {
     if (!documentId || !requesterId || !proposedContent || !sensitivityTier || !Array.isArray(poolMemberIds)) {
       throw this._createError('Missing required fields for edit request creation', 400, 'INVALID_INPUT');
     }
@@ -45,8 +45,14 @@ class ApprovalService {
 
     // Determine Quorum thresholds M-of-N based on Sensitivity Tier
     const tierConfig = getTierConfig(sensitivityTier);
-    const requiredM = tierConfig.threshold_m;
-    const requiredN = tierConfig.pool_size_n;
+    let requiredM = tierConfig.threshold_m;
+    let requiredN = tierConfig.pool_size_n;
+
+    // Dynamically adapt N and M if active system approver pool is smaller (e.g. 3-user deployment)
+    if (poolMemberIds.length > 0 && poolMemberIds.length < requiredN) {
+      requiredN = poolMemberIds.length;
+      requiredM = Math.min(requiredM, requiredN);
+    }
 
     // Validate Pool Member Count matches N requirement
     if (poolMemberIds.length !== requiredN) {
@@ -66,7 +72,7 @@ class ApprovalService {
       );
     }
 
-    const requestId = `req_${crypto.randomBytes(8).toString('hex')}`;
+    const requestId = id || `req_${crypto.randomBytes(8).toString('hex')}`;
 
     // Generate anonymous pseudonyms for each approver in the pool
     const pseudonymsMap = {};

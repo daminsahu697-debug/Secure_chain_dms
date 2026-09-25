@@ -316,6 +316,48 @@ export default function LoginPage({
 
           </form>
 
+          {/* Quick Access for Authorized Users */}
+          <div className="bg-slate-50 dark:bg-slate-900/60 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block text-center">
+              Authorized Cadre Quick Login
+            </span>
+            <div className="grid grid-cols-3 gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setOfficialId('POL-IO-001');
+                  setPassword('123456');
+                  runDetection('POL-IO-001');
+                }}
+                className="px-2 py-1.5 bg-orange-50 dark:bg-orange-950/40 hover:bg-orange-100 text-[#FF6A1A] border border-orange-200 dark:border-orange-800 rounded-lg text-[10px] font-bold text-center transition-all cursor-pointer"
+              >
+                Officer
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOfficialId('JUD-JDG-001');
+                  setPassword('123456');
+                  runDetection('JUD-JDG-001');
+                }}
+                className="px-2 py-1.5 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 text-[#1E3A8A] dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-lg text-[10px] font-bold text-center transition-all cursor-pointer"
+              >
+                Judge
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOfficialId('FOR-EXP-001');
+                  setPassword('123456');
+                  runDetection('FOR-EXP-001');
+                }}
+                className="px-2 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 text-[#2E7D32] dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-lg text-[10px] font-bold text-center transition-all cursor-pointer"
+              >
+                Forensic
+              </button>
+            </div>
+          </div>
+
           {/* ── Security notice ── */}
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
             <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center leading-relaxed">

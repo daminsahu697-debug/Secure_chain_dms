@@ -343,17 +343,17 @@ export default function QuorumModal({
                     </p>
                     <div className="flex justify-center gap-2">
                       <button
-                        onClick={() => onSwitchUser && onSwitchUser('POL-SPO-001')}
-                        className="px-3 py-1.5 bg-[#FF6A1A] hover:bg-[#E85B0E] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                        onClick={() => onSwitchUser && onSwitchUser('JUD-JDG-001')}
+                        className="px-3 py-1.5 bg-[#4FA8E0] hover:bg-[#3B97D1] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1"
                       >
-                        <span>Switch to Approver 1 (SPO)</span>
+                        <span>Switch to Approver 1 (Judge)</span>
                         <ArrowRight className="w-3 h-3" />
                       </button>
                       <button
-                        onClick={() => onSwitchUser && onSwitchUser('JUD-MAG-001')}
-                        className="px-3 py-1.5 bg-[#4FA8E0] hover:bg-[#3B97D1] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                        onClick={() => onSwitchUser && onSwitchUser('FOR-EXP-001')}
+                        className="px-3 py-1.5 bg-[#2E7D32] hover:bg-[#1B5E20] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1"
                       >
-                        <span>Switch to Approver 2 (Magistrate)</span>
+                        <span>Switch to Approver 2 (Forensic Officer)</span>
                         <ArrowRight className="w-3 h-3" />
                       </button>
                     </div>

@@ -9,33 +9,23 @@ logger = logging.getLogger(__name__)
 
 DEMO_USERS_SPEC = [
     {
-        "employee_id": "EMP001",
-        "name": "Demo Officer",
-        "email": "emp001@securechain.gov.in",
-        "role": "OFFICER",
+        "employee_id": "POL-IO-001",
+        "name": "Officer (Investigation)",
+        "email": "officer@securechain.gov.in",
+        "role": "POLICE",
     },
     {
-        "employee_id": "EMP002",
-        "name": "Demo Reviewer",
-        "email": "emp002@securechain.gov.in",
-        "role": "REVIEWER",
+        "employee_id": "JUD-JDG-001",
+        "name": "Hon. Presiding Judge",
+        "email": "judge@securechain.gov.in",
+        "role": "JUDICIAL",
     },
     {
-        "employee_id": "ADMIN001",
-        "name": "Demo Admin",
-        "email": "admin001@securechain.gov.in",
-        "role": "ADMIN",
+        "employee_id": "FOR-EXP-001",
+        "name": "Forensic Officer",
+        "email": "forensic@securechain.gov.in",
+        "role": "FORENSIC",
     },
-    {"employee_id": "POL-IO-001", "name": "Investigating Officer (IO)", "email": "io@securechain.gov.in", "role": "POLICE"},
-    {"employee_id": "POL-SHO-001", "name": "Station House Officer (SHO)", "email": "sho@securechain.gov.in", "role": "POLICE"},
-    {"employee_id": "POL-SPO-001", "name": "Senior Police Officer (SPO)", "email": "spo@securechain.gov.in", "role": "POLICE"},
-    {"employee_id": "FOR-EXP-001", "name": "Forensic Expert", "email": "forexpert@securechain.gov.in", "role": "FORENSIC"},
-    {"employee_id": "FOR-HOD-001", "name": "Forensic Lab Head", "email": "forhod@securechain.gov.in", "role": "FORENSIC"},
-    {"employee_id": "FOR-AUD-001", "name": "Forensic Auditor", "email": "foraud@securechain.gov.in", "role": "FORENSIC"},
-    {"employee_id": "JUD-MAG-001", "name": "Magistrate", "email": "magistrate@securechain.gov.in", "role": "JUDICIAL"},
-    {"employee_id": "JUD-JDG-001", "name": "Judge", "email": "judge@securechain.gov.in", "role": "JUDICIAL"},
-    {"employee_id": "JUD-PP-001", "name": "Public Prosecutor", "email": "pp@securechain.gov.in", "role": "JUDICIAL"},
-    {"employee_id": "JUD-REG-001", "name": "Court Registrar", "email": "registrar@securechain.gov.in", "role": "JUDICIAL"},
 ]
 
 

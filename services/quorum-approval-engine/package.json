@@ -17,7 +17,9 @@
   "author": "Google DeepMind Team",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.21.2"
+    "dotenv": "^18.0.2",
+    "express": "^4.21.2",
+    "pg": "^8.23.0"
   },
   "devDependencies": {
     "jest": "^29.7.0",

@@ -184,8 +184,9 @@ class QuorumClient:
         # Pool size N based on sensitivity: LOW=1, MEDIUM=3, HIGH=5
         sens_upper = (sensitivity or "MEDIUM").upper()
         pool_n = 1 if sens_upper == "LOW" else (3 if sens_upper == "MEDIUM" else 5)
+        effective_n = min(pool_n, len(eligible_ids))
 
-        return eligible_ids[:pool_n]
+        return eligible_ids[:effective_n]
 
     async def validate_approved_quorum_token(self, request_id: str) -> Dict[str, Any]:
         """

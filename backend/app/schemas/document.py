@@ -27,10 +27,13 @@ class DocumentUpdate(BaseModel):
 class DocumentResponse(DocumentBase):
     id: Union[uuid.UUID, str, int]
     case_id: Union[uuid.UUID, str, int]
+    case_number: Optional[str] = None
     uploaded_by: Union[uuid.UUID, str, int]
     current_version_id: Optional[Union[uuid.UUID, str, int]] = None
     created_at: datetime
     updated_at: datetime
+    edit_request_id: Optional[Union[uuid.UUID, str]] = None
+    active_edit_request: Optional[dict] = None
 
     model_config = ConfigDict(from_attributes=True)
 

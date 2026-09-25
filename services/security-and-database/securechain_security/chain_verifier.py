@@ -121,7 +121,11 @@ class ChainVerifier:
     and produces tamper-proof court admissibility certificates.
     """
 
-    def __init__(self, chain_engine: ChainEngine, hash_service: HashService) -> None:
+    def __init__(
+        self,
+        chain_engine: Optional[ChainEngine] = None,
+        hash_service: Optional[HashService] = None,
+    ) -> None:
         """
         Initialize the ChainVerifier.
 
@@ -130,11 +134,14 @@ class ChainVerifier:
             hash_service: Cryptographic hashing service.
 
         Raises:
-            ValueError: If either chain_engine or hash_service is None.
+            ValueError: If one argument is provided but the other is None.
         """
-        if chain_engine is None:
+        if chain_engine is None and hash_service is None:
+            hash_service = HashService()
+            chain_engine = ChainEngine(hash_service=hash_service)
+        elif chain_engine is None:
             raise ValueError("chain_engine cannot be None")
-        if hash_service is None:
+        elif hash_service is None:
             raise ValueError("hash_service cannot be None")
 
         self._chain_engine: ChainEngine = chain_engine
@@ -143,6 +150,45 @@ class ChainVerifier:
         self._lock: threading.RLock = threading.RLock()
 
         logger.info("ChainVerifier initialized successfully")
+
+    def verify_chain(self, chain_records: List[Dict[str, Any]]) -> Tuple[bool, List[Dict[str, Any]]]:
+        """
+        Verify an in-memory or database-retrieved list of chain records for sequential continuity.
+
+        Args:
+            chain_records: List of version record dictionaries containing chain hashes.
+
+        Returns:
+            Tuple of (is_intact: bool, report: List[dict]).
+        """
+        report: List[Dict[str, Any]] = []
+        is_intact = True
+
+        for i, rec in enumerate(chain_records):
+            prev_hash = rec.get("prev_chain_hash", "")
+            chain_hash = rec.get("chain_hash", "")
+            doc_hash = rec.get("doc_hash", "")
+            version = rec.get("version_number", f"{i+1}.0")
+
+            if i > 0:
+                expected_prev = chain_records[i - 1].get("chain_hash", "")
+                if not hmac.compare_digest(prev_hash or "", expected_prev or ""):
+                    is_intact = False
+                    report.append({
+                        "version": version,
+                        "status": "FAIL",
+                        "reason": f"prev_chain_hash mismatch: expected {expected_prev}, got {prev_hash}"
+                    })
+                    continue
+
+            report.append({
+                "version": version,
+                "status": "PASS",
+                "chain_hash": chain_hash,
+                "doc_hash": doc_hash
+            })
+
+        return is_intact, report
 
     @property
     def chain_engine(self) -> ChainEngine:

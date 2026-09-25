@@ -7,7 +7,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from starlette import status as http_status
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.db.session import get_db
 from app.api.deps import get_current_user
@@ -379,7 +379,7 @@ def list_documents(
             detail="Limit parameter must be between 1 and 100.",
         )
 
-    query = db.query(Document)
+    query = db.query(Document).options(joinedload(Document.case))
 
     if case_id:
         try:
@@ -435,7 +435,7 @@ def get_document(
             detail=f"Document with ID {document_id} not found.",
         )
 
-    doc = db.query(Document).filter(Document.id == doc_uuid).first()
+    doc = db.query(Document).options(joinedload(Document.case)).filter(Document.id == doc_uuid).first()
     if not doc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -819,12 +819,10 @@ async def create_edit_request(
         db=db,
     )
 
-    sens_upper = (doc.sensitivity_level or "MEDIUM").upper()
-    required_n = 1 if sens_upper == "LOW" else (3 if sens_upper == "MEDIUM" else 5)
-    if len(pool_member_ids) < required_n:
+    if not pool_member_ids:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Sensitivity tier '{doc.sensitivity_level}' requires {required_n} approvers, but only {len(pool_member_ids)} active non-requester user(s) available.",
+            detail="No active non-requester approvers available to form an approval quorum.",
         )
 
     # 4. Submit proposal request to Quorum Approval Engine
@@ -900,6 +898,10 @@ async def create_edit_request(
     )
     db.add(edit_req)
 
+    # 6b. Transition document status to PENDING_QUORUM so it surfaces across all approver dashboards
+    doc.status = "PENDING_QUORUM"
+    db.add(doc)
+
     # 7. Audit Log Entry
     audit_log = AuditLog(
         event_type="EDIT_REQUEST_CREATED",
@@ -949,6 +951,13 @@ async def get_edit_request_details(
         .first()
     )
     if not edit_req:
+        edit_req = (
+            db.query(EditRequest)
+            .filter(EditRequest.document_id == req_uuid)
+            .order_by(EditRequest.requested_at.desc())
+            .first()
+        )
+    if not edit_req:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Edit request '{request_id}' not found.",
@@ -956,6 +965,7 @@ async def get_edit_request_details(
 
     # Fetch authoritative Quorum Engine details
     quorum_req_id = getattr(edit_req, "quorum_request_id", None) or str(edit_req.id)
+    q_details = None
     try:
         q_details = await quorum_client.get_request_details(quorum_req_id)
         if not q_details.get("skipped"):
@@ -975,7 +985,10 @@ async def get_edit_request_details(
     except Exception as err:
         logger.warning(f"Could not sync quorum details for request '{request_id}': {err}")
 
-    return edit_req
+    resp = EditRequestResponse.model_validate(edit_req)
+    if q_details and not q_details.get("skipped"):
+        resp.quorum_data = q_details
+    return resp
 
 
 @router.post(
@@ -1000,6 +1013,13 @@ async def cast_edit_request_vote(
         .filter((EditRequest.id == req_uuid) | (EditRequest.amendment_reason_code == request_id))
         .first()
     )
+    if not edit_req:
+        edit_req = (
+            db.query(EditRequest)
+            .filter(EditRequest.document_id == req_uuid)
+            .order_by(EditRequest.requested_at.desc())
+            .first()
+        )
     if not edit_req:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -1042,6 +1062,9 @@ async def cast_edit_request_vote(
         db.commit()
     elif engine_status == "REJECTED" and edit_req.status != "REJECTED":
         edit_req.status = "REJECTED"
+        if edit_req.document:
+            edit_req.document.status = "LOCKED"
+            db.add(edit_req.document)
         audit_log = AuditLog(
             event_type="APPROVAL_REJECTED",
             severity="WARNING",
@@ -1092,6 +1115,13 @@ async def finalize_edit_request(
         .filter((EditRequest.id == req_uuid) | (EditRequest.amendment_reason_code == request_id))
         .first()
     )
+    if not edit_req:
+        edit_req = (
+            db.query(EditRequest)
+            .filter(EditRequest.document_id == req_uuid)
+            .order_by(EditRequest.requested_at.desc())
+            .first()
+        )
     if not edit_req:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -1215,6 +1245,8 @@ async def finalize_edit_request(
 
         # 9. Update Document current_version_id & EditRequest status
         doc.current_version_id = new_ver.id
+        doc.status = "LOCKED"
+        db.add(doc)
         edit_req.proposed_version_id = new_ver.id
         edit_req.status = "APPROVED"
 

@@ -123,7 +123,7 @@ export default function DocumentDetailView({
             ...prev,
             ...data,
             title: data.title || prev?.title,
-            firNo: data.case_id ? `CASE-${String(data.case_id).substring(0, 8).toUpperCase()}` : prev?.firNo,
+            firNo: data.case_number || prev?.firNo || (data.case_id && !String(data.case_id).startsWith('11111111') ? `CASE-${String(data.case_id).substring(0, 8).toUpperCase()}` : `DOC-${String(data.id).substring(0, 8).toUpperCase()}`),
             sha256: data.sha256_hash || data.stored_hash || prev?.sha256,
             status: data.status || (data.is_sealed ? 'LOCKED' : prev?.status),
             currentVersion: data.version_number ? `1.${data.version_number - 1}` : (data.current_version_id ? '1.0' : prev?.currentVersion),

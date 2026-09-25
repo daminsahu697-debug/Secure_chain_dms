@@ -233,7 +233,8 @@ function AppContent() {
 
             const realFirNo = cached.firNo || cached.fir_number || d.fir_number ||
               (d.title?.startsWith('FIR No.') ? d.title.split(' ')[2]?.split('-')[0]?.trim() : null) ||
-              (d.case_id ? `CASE-${String(d.case_id).substring(0, 8).toUpperCase()}` : `DOC-${String(d.id).substring(0, 8).toUpperCase()}`);
+              d.case_number ||
+              (d.case_id && !String(d.case_id).startsWith('11111111') ? `CASE-${String(d.case_id).substring(0, 8).toUpperCase()}` : `DOC-${String(d.id).substring(0, 8).toUpperCase()}`);
 
             return {
               ...d,
@@ -251,7 +252,9 @@ function AppContent() {
               version: d.version || '1.0',
               created_at: d.created_at || d.createdAt,
               dateReported: cached.dateReported || d.created_at || d.createdAt,
-              requesterId: d.requester_id || d.uploaded_by || d.created_by || d.authorId,
+              editRequestId: d.edit_request_id || d.active_edit_request_id || d.active_edit_request?.id || cached.editRequestId,
+              activeEditRequest: d.active_edit_request || cached.activeEditRequest,
+              requesterId: d.active_edit_request?.requester_id || d.requester_id || d.uploaded_by || d.created_by || d.authorId,
             };
           });
 
@@ -433,7 +436,9 @@ function AppContent() {
         ...backendUser,
         id: backendUser.id || backendUser.employee_id,
         name: backendUser.name || 'Approver',
-        portalRole: 'JUDICIAL'
+        portalRole: (backendUser.role || '').toUpperCase().includes('FORENSIC')
+          ? 'FORENSIC'
+          : ((backendUser.role || '').toUpperCase().includes('JUD') ? 'JUDICIAL' : 'POLICE')
       };
       
       setActiveUser(enrichedUser);

@@ -12,8 +12,8 @@ function createApp(customDb = null) {
   const app = express();
   app.use(express.json());
 
-  // Use real PostgreSQL unless a custom DB is injected (used by tests with MemoryDb)
-  const db = customDb || new PostgresDb();
+  // Use MemoryDb with PG-backed document lookup
+  const db = customDb || new MemoryDb();
   const approvalService = new ApprovalService(db);
   const auditService = new AuditService(db);
   const approvalController = new ApprovalController(approvalService, auditService, db);

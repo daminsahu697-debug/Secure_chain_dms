@@ -29,9 +29,10 @@ class ApprovalController {
    */
   createRequest = async (req, res, next) => {
     try {
-      const { documentId, requesterId, proposedContent, sensitivityTier, poolMemberIds } = req.body;
+      const { id, documentId, requesterId, proposedContent, sensitivityTier, poolMemberIds } = req.body;
 
       const result = await this.approvalService.createEditRequest({
+        id,
         documentId,
         requesterId,
         proposedContent,

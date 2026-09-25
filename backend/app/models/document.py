@@ -62,6 +62,30 @@ class Document(Base):
     def uploaded_by(self, value: uuid.UUID) -> None:
         self.created_by = value
 
+    @property
+    def case_number(self) -> Optional[str]:
+        return self.case.case_number if self.case else None
+
+    @property
+    def edit_request_id(self) -> Optional[uuid.UUID]:
+        for req in (self.edit_requests or []):
+            if req.status in ("PENDING", "PENDING_QUORUM", "APPROVED"):
+                return req.id
+        return None
+
+    @property
+    def active_edit_request(self) -> Optional[dict]:
+        for req in (self.edit_requests or []):
+            if req.status in ("PENDING", "PENDING_QUORUM", "APPROVED"):
+                return {
+                    "id": str(req.id),
+                    "requester_id": str(req.requester_id),
+                    "reason": req.reason,
+                    "status": req.status,
+                    "requested_at": req.requested_at.isoformat() if req.requested_at else None,
+                }
+        return None
+
     # Relationships
     case: Mapped["Case"] = relationship("Case", back_populates="documents")
     uploader: Mapped["User"] = relationship(

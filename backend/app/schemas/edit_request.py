@@ -27,5 +27,6 @@ class EditRequestResponse(EditRequestBase):
     quorum_policy_id: Optional[Union[uuid.UUID, str, int]] = None
     requested_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    quorum_data: Optional[dict] = None
 
     model_config = ConfigDict(from_attributes=True)

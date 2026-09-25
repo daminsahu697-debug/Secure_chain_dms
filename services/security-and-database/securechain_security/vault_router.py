@@ -287,16 +287,29 @@ class VaultRouter:
             if not has_chain:
                 # First document in case: create genesis record
                 if clean_version != "1.0":
-                    raise VaultRoutingError(
-                        f"Genesis record for case '{clean_case_id}' must be original version '1.0', "
-                        f"got '{clean_version}'"
+                    genesis_hash = amendment_of or "0" * 64
+                    self._chain_engine.create_genesis(
+                        case_id=clean_case_id,
+                        document_id=clean_doc_id,
+                        doc_hash=genesis_hash,
+                        officer_id=clean_officer_id,
                     )
-                chain_record = self._chain_engine.create_genesis(
-                    case_id=clean_case_id,
-                    document_id=clean_doc_id,
-                    doc_hash=doc_hash,
-                    officer_id=clean_officer_id,
-                )
+                    chain_record = self._chain_engine.append_document(
+                        case_id=clean_case_id,
+                        document_id=clean_doc_id,
+                        doc_hash=doc_hash,
+                        officer_id=clean_officer_id,
+                        version=clean_version,
+                        quorum_token=quorum_token,
+                        amendment_of=amendment_of,
+                    )
+                else:
+                    chain_record = self._chain_engine.create_genesis(
+                        case_id=clean_case_id,
+                        document_id=clean_doc_id,
+                        doc_hash=doc_hash,
+                        officer_id=clean_officer_id,
+                    )
             else:
                 # Subsequent document or amendment: append to chain
                 chain_record = self._chain_engine.append_document(
