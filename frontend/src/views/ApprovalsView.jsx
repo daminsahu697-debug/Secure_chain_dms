@@ -101,12 +101,36 @@ export default function ApprovalsView({
 
       toast.success(voteType === 'APPROVE' ? 'Consensus approval recorded on ledger!' : 'Rejection registered.');
       if (onVoteSuccess) {
+        const qData = res.quorum_data || res;
+        const qReq = qData?.request || qData;
+        const votes = qReq?.votes || [];
+        const voteCounts = qReq?.vote_counts || {};
+        const poolMembers = qReq?.approval_pool || [];
+        const totalEligible = qReq?.pool_size_n || 3;
+
+        const updatedSlots = Array.from({ length: totalEligible }, (_, idx) => {
+          const m = poolMembers[idx];
+          const v = votes[idx];
+          return {
+            slotIndex: idx + 1,
+            title: m?.pseudonym || v?.pseudonym || `Approver ${idx + 1}`,
+            hasVoted: !!v,
+            vote: v?.vote_choice || null
+          };
+        });
+
         onVoteSuccess({
           ...doc,
-          status: res.status,
+          status: res.status || qReq?.status || 'APPROVED',
           editRequestId: requestId,
-          activeEditRequest: res
-        }, res.quorum_data);
+          activeEditRequest: qReq,
+          quorumSession: {
+            threshold: qReq?.threshold_m || 2,
+            totalEligible,
+            approvalCount: voteCounts.approve !== undefined ? voteCounts.approve : votes.filter(v => v.vote_choice === 'APPROVE').length,
+            approverSlots: updatedSlots
+          }
+        }, qData);
       }
     } catch (err) {
       console.error("Vote error in ApprovalsView:", err);
@@ -204,16 +228,42 @@ export default function ApprovalsView({
         ) : (
           <div className="space-y-4">
             {displayDocs.map((doc) => {
+              const activeReq = doc.activeEditRequest || doc.active_edit_request || doc.quorum_data?.request || doc.quorum_data || {};
+              const threshold = activeReq.threshold_m || activeReq.threshold || doc.quorumSession?.threshold || 2;
+              const totalEligible = activeReq.pool_size_n || activeReq.totalEligible || doc.quorumSession?.totalEligible || 3;
+              const votes = activeReq.votes || activeReq.quorum_data?.votes || doc.quorumSession?.votes || [];
+              const voteCounts = activeReq.vote_counts || activeReq.quorum_data?.vote_counts;
+
+              const approvalCount = voteCounts?.approve !== undefined 
+                ? voteCounts.approve 
+                : (doc.quorumSession?.approvalCount !== undefined 
+                    ? doc.quorumSession.approvalCount 
+                    : votes.filter(v => (v.vote_choice || v.vote) === 'APPROVE').length);
+
+              const poolMembers = activeReq.approval_pool || [];
+
+              const approverSlots = (doc.quorumSession?.approverSlots && doc.quorumSession.approverSlots.length > 0)
+                ? doc.quorumSession.approverSlots
+                : Array.from({ length: totalEligible }, (_, i) => {
+                    const member = poolMembers[i];
+                    const voteObj = votes[i];
+                    const hasVoted = !!voteObj;
+                    const voteChoice = voteObj?.vote_choice || voteObj?.vote || null;
+                    const title = member?.pseudonym || voteObj?.pseudonym || `Approver ${i + 1}`;
+                    return {
+                      slotIndex: i + 1,
+                      title,
+                      hasVoted,
+                      vote: voteChoice
+                    };
+                  });
+
               const session = doc.quorumSession || {
-                threshold: 2,
-                totalEligible: 3,
-                approvalCount: 1,
+                threshold,
+                totalEligible,
+                approvalCount,
                 poolLabel: doc.jurisdictionalPool || "District Police Review Pool",
-                approverSlots: [
-                  { slotIndex: 1, title: "Approver 1", hasVoted: true, vote: "APPROVE" },
-                  { slotIndex: 2, title: "Approver 2", hasVoted: false, vote: null },
-                  { slotIndex: 3, title: "Approver 3", hasVoted: false, vote: null }
-                ]
+                approverSlots
               };
 
               const isExpanded = expandedDocId === doc.id;
