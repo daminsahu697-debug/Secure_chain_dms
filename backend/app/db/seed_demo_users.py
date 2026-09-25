@@ -47,7 +47,7 @@ DEMO_USERS_SPEC = [
     {
         "employee_id": "ADMIN001",
         "name": "System Administrator",
-        "email": "admin@securechain.gov.in",
+        "email": "admin001@securechain.gov.in",
         "role": "SYSTEM_ADMIN",
     },
 ]
