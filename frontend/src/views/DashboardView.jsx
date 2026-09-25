@@ -127,6 +127,15 @@ export default function DashboardView({
           { id: 'approvals', label: 'Quorum Approval', icon: FileCheck2, badge: documents.filter(d => d.status === 'PENDING_QUORUM').length || null },
           { id: 'settings', label: 'Settings', icon: Settings, badge: null }
         ];
+      case 'APPROVAL_OFFICER':
+        return [
+          { id: 'overview', label: 'Home', icon: Home, badge: null },
+          { id: 'cases', label: 'My Cases', icon: FolderArchive, badge: myCasesCount || null },
+          { id: 'upload', label: 'Upload New FIR', icon: UploadCloud, badge: null },
+          { id: 'approvals', label: 'Quorum Approval', icon: FileCheck2, badge: documents.filter(d => d.status === 'PENDING_QUORUM').length || null },
+          { id: 'my_requests', label: 'My Requests (Quorum Status)', icon: FileCheck, badge: documents.filter(d => d.status === 'PENDING_QUORUM').length || null },
+          { id: 'settings', label: 'Settings', icon: Settings, badge: null }
+        ];
       default:
         return [
           { id: 'overview', label: 'Home', icon: Home, badge: null },
@@ -189,7 +198,13 @@ export default function DashboardView({
   const sidebarTabs = getSidebarTabs();
 
   const handleTabClick = (tabId) => {
-    setActiveSidebarTab(tabId);
+    if (tabId === 'approvals' && onNavigateToApprovals) {
+      onNavigateToApprovals();
+    } else if (tabId === 'audit' && onGoToAudit) {
+      onGoToAudit();
+    } else {
+      setActiveSidebarTab(tabId);
+    }
     handleCloseMobileDrawer();
   };
 

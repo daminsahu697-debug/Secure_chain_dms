@@ -161,8 +161,6 @@ function AppContent() {
           lastKeyRef.current = null;
           if (activeUser?.portalRole === 'CITIZEN') {
             setCurrentTab('citizen');
-          } else if (activeUser?.portalRole === 'APPROVAL_OFFICER') {
-            setCurrentTab('approvals');
           } else if (activeUser) {
             setCurrentTab('dashboard');
           } else {
@@ -195,9 +193,7 @@ function AppContent() {
     if (activeUser) {
       // If logged in, they cannot visit home or login pages.
       if (currentTab === 'home' || currentTab === 'login') {
-        if (activeUser.portalRole === 'CITIZEN') setCurrentTab('citizen');
-        else if (activeUser.portalRole === 'APPROVAL_OFFICER') setCurrentTab('approvals');
-        else setCurrentTab('dashboard');
+        setCurrentTab(activeUser.portalRole === 'CITIZEN' ? 'citizen' : 'dashboard');
       }
     } else {
       // If not logged in, they can only visit public pages.
@@ -460,8 +456,6 @@ function AppContent() {
     toast.success(`Authenticated successfully as ${user.name}`);
     if (user.portalRole === 'CITIZEN') {
       setCurrentTab('citizen');
-    } else if (user.portalRole === 'APPROVAL_OFFICER') {
-      setCurrentTab('approvals');
     } else {
       setCurrentTab('dashboard');
     }
