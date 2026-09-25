@@ -35,13 +35,19 @@ const PREFIX_MAP = {
   FSL: { role: 'FORENSIC', secondaryLabel: 'Laboratory / Unit',              secondaryPlaceholder: 'e.g. Central Forensic Science Laboratory (CFSL)' },
   EMP: { role: 'POLICE',   secondaryLabel: 'Department / Unit',              secondaryPlaceholder: 'e.g. Headquarters / Operations' },
   ADM: { role: 'POLICE',   secondaryLabel: 'Department / Unit',              secondaryPlaceholder: 'e.g. System Administration' },
+  DL:  { role: 'POLICE',   secondaryLabel: 'Assigned Station / Division',    secondaryPlaceholder: 'e.g. South Delhi PS, Saket' },
 };
 
-/** Detect role config from the first 3 chars of an ID string. Returns null if unrecognized. */
+/** Detect role config from the ID string. Returns null if unrecognized. */
 function detectFromId(id) {
-  if (!id || id.trim().length < 3) return null;
-  const prefix = id.trim().slice(0, 3).toUpperCase();
-  return PREFIX_MAP[prefix] || null;
+  if (!id || id.trim().length < 2) return null;
+  const upper = id.trim().toUpperCase();
+  if (upper.startsWith('DL-IO')) return PREFIX_MAP.POL;
+  if (upper.startsWith('DL-SUP')) return PREFIX_MAP.JUD;
+  if (upper.startsWith('DL-AUD')) return PREFIX_MAP.FOR;
+  const prefix = upper.slice(0, 3);
+  const prefix2 = upper.slice(0, 2);
+  return PREFIX_MAP[prefix] || PREFIX_MAP[prefix2] || null;
 }
 
 export default function LoginPage({

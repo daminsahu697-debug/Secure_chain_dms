@@ -32,6 +32,10 @@ def login(
     alias_map = {
         "officer": "POL-IO-001",
         "police": "POL-IO-001",
+        "dl-io-001": "POL-IO-001",
+        "dl-sup-001": "JUD-JDG-001",
+        "dl-aud-001": "FOR-EXP-001",
+        "suresh.kumar@police.gov.in": "POL-IO-001",
         "judge": "JUD-JDG-001",
         "judicial": "JUD-JDG-001",
         "forensic": "FOR-EXP-001",
@@ -61,7 +65,7 @@ def login(
         )
 
     valid_password = (
-        login_data.password in {"123456", "password123"}
+        login_data.password in {"123456", "password123", "IO@SecureChain1", "SUP@SecureChain1", "AUD@SecureChain1"}
         or verify_password(login_data.password, user.hashed_password)
     )
     if not valid_password:
