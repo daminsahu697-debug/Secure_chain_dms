@@ -52,12 +52,14 @@ export default function ApprovalsView({
   const pendingDocs = documents.filter(d => d.status === 'PENDING_QUORUM' || d.status === 'PENDING');
   
   // Split into own requests vs peer review requests
-  const myRequests = pendingDocs.filter(d => 
-    d.requesterId === activeUser?.id || d.authorId === activeUser?.id || (userRole === 'POLICE')
-  );
-  const actionablePeerReviews = pendingDocs.filter(d => 
-    d.requesterId !== activeUser?.id && d.authorId !== activeUser?.id
-  );
+  const myRequests = pendingDocs.filter(d => {
+    const rId = d.requester_id || d.requesterId || d.uploaded_by || d.authorId || d.created_by;
+    return rId === activeUser?.id || (userRole === 'POLICE');
+  });
+  const actionablePeerReviews = pendingDocs.filter(d => {
+    const rId = d.requester_id || d.requesterId || d.uploaded_by || d.authorId || d.created_by;
+    return rId !== activeUser?.id;
+  });
 
   const displayDocs = activeViewTab === 'my_requests' ? myRequests : (userRole === 'JUDICIAL' ? pendingDocs : actionablePeerReviews);
 
@@ -66,7 +68,7 @@ export default function ApprovalsView({
   const [voteComment, setVoteComment] = useState('');
 
   const handleCastVote = async (doc, voteType) => {
-    const requesterId = doc.requester_id || doc.requesterId || doc.uploaded_by || doc.authorId;
+    const requesterId = doc.requester_id || doc.requesterId || doc.uploaded_by || doc.authorId || doc.created_by;
     if (activeUser && (String(activeUser.id) === String(requesterId) || String(activeUser.employee_id) === String(requesterId))) {
       toast.error("Rule 4B Enforcement: You cannot approve your own edit request.");
       return;
@@ -146,7 +148,7 @@ export default function ApprovalsView({
         </div>
 
         {/* Cadre-Scoped Tab Switcher (Master Spec Section 12) */}
-        {userRole === 'FORENSIC' && (
+        {['FORENSIC', 'APPROVAL_OFFICER'].includes(userRole) && (
           <div className="flex items-center gap-2 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-fit">
             <button
               onClick={() => setActiveViewTab('approvals')}
