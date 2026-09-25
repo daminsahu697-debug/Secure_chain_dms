@@ -142,6 +142,8 @@ export default function LoginPage({
         portalRole = 'FORENSIC';
       } else if (backendRole === 'AUDITOR' || backendRole === 'AUDIT') {
         portalRole = 'AUDITOR';
+      } else if (backendRole === 'APPROVAL_OFFICER') {
+        portalRole = 'APPROVAL_OFFICER';
       } else if (detected && detected.role) {
         portalRole = detected.role;
       } else if (backendRole === 'OFFICER' || backendRole === 'POLICE' || backendRole === 'ADMIN') {

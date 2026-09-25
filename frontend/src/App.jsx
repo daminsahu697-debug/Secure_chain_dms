@@ -161,6 +161,8 @@ function AppContent() {
           lastKeyRef.current = null;
           if (activeUser?.portalRole === 'CITIZEN') {
             setCurrentTab('citizen');
+          } else if (activeUser?.portalRole === 'APPROVAL_OFFICER') {
+            setCurrentTab('approvals');
           } else if (activeUser) {
             setCurrentTab('dashboard');
           } else {
@@ -173,7 +175,7 @@ function AppContent() {
         if (e.key === 'a' || e.key === 'A') {
           e.preventDefault();
           lastKeyRef.current = null;
-          if (activeUser?.portalRole === 'POLICE' || activeUser?.portalRole === 'JUDICIAL' || activeUser?.portalRole === 'FORENSIC') {
+          if (activeUser?.portalRole === 'POLICE' || activeUser?.portalRole === 'JUDICIAL' || activeUser?.portalRole === 'FORENSIC' || activeUser?.portalRole === 'APPROVAL_OFFICER') {
             setCurrentTab('approvals');
             setSelectedDoc(null);
           } else {
@@ -193,7 +195,9 @@ function AppContent() {
     if (activeUser) {
       // If logged in, they cannot visit home or login pages.
       if (currentTab === 'home' || currentTab === 'login') {
-        setCurrentTab(activeUser.portalRole === 'CITIZEN' ? 'citizen' : 'dashboard');
+        if (activeUser.portalRole === 'CITIZEN') setCurrentTab('citizen');
+        else if (activeUser.portalRole === 'APPROVAL_OFFICER') setCurrentTab('approvals');
+        else setCurrentTab('dashboard');
       }
     } else {
       // If not logged in, they can only visit public pages.
@@ -300,8 +304,8 @@ function AppContent() {
             const storedUser = getStoredUser() || {};
             const empId = userRes.employee_id || storedUser.employee_id || '';
             const prefix = empId.slice(0, 3).toUpperCase();
-            const prefixRoleMap = { POL: 'POLICE', JUD: 'JUDICIAL', FOR: 'FORENSIC', FSL: 'FORENSIC', AUD: 'AUDITOR' };
-            const portalRole = storedUser.portalRole || prefixRoleMap[prefix] || (userRes.role === 'ADMIN' ? 'AUDITOR' : 'POLICE');
+            const prefixRoleMap = { POL: 'POLICE', JUD: 'JUDICIAL', FOR: 'FORENSIC', FSL: 'FORENSIC', AUD: 'AUDITOR', APP: 'APPROVAL_OFFICER' };
+            const portalRole = storedUser.portalRole || prefixRoleMap[prefix] || (userRes.role === 'APPROVAL_OFFICER' ? 'APPROVAL_OFFICER' : (userRes.role === 'ADMIN' ? 'AUDITOR' : 'POLICE'));
 
             const restoredUser = {
               ...storedUser,
@@ -456,6 +460,8 @@ function AppContent() {
     toast.success(`Authenticated successfully as ${user.name}`);
     if (user.portalRole === 'CITIZEN') {
       setCurrentTab('citizen');
+    } else if (user.portalRole === 'APPROVAL_OFFICER') {
+      setCurrentTab('approvals');
     } else {
       setCurrentTab('dashboard');
     }
