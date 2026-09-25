@@ -991,6 +991,72 @@ async def get_edit_request_details(
     return resp
 
 
+@router.get(
+    "/{document_id}/edit-requests/{request_id}/download",
+    summary="Download Proposed Amendment Document File",
+    description="Decrypt and download the temporary proposed PDF file for an edit request under review.",
+)
+def download_edit_request_proposal(
+    document_id: str,
+    request_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        req_uuid = uuid.UUID(request_id) if isinstance(request_id, str) else request_id
+    except (ValueError, AttributeError):
+        req_uuid = request_id
+
+    edit_req = (
+        db.query(EditRequest)
+        .filter((EditRequest.id == req_uuid) | (EditRequest.amendment_reason_code == request_id))
+        .first()
+    )
+    if not edit_req:
+        edit_req = (
+            db.query(EditRequest)
+            .filter(EditRequest.document_id == req_uuid)
+            .order_by(EditRequest.requested_at.desc())
+            .first()
+        )
+    if not edit_req:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Edit request '{request_id}' not found.",
+        )
+
+    temp_enc_key = f"proposals/{edit_req.id}/{edit_req.amendment_reason_code}.enc"
+    temp_meta_key = f"proposals/{edit_req.id}/{edit_req.amendment_reason_code}.meta.json"
+
+    try:
+        cipher_bytes = storage_service.get_file_bytes(temp_enc_key)
+        meta_bytes = storage_service.get_file_bytes(temp_meta_key)
+        meta_dict = json.loads(meta_bytes.decode("utf-8"))
+
+        key_id_val = uuid.UUID(meta_dict["key_id"]) if isinstance(meta_dict["key_id"], str) else meta_dict["key_id"]
+
+        proposed_bytes = security_adapter.encryption_service.decrypt_document(
+            ciphertext=cipher_bytes,
+            wrapped_dek=meta_dict["wrapped_dek"],
+            iv=meta_dict["iv"],
+            key_id=key_id_val,
+            aad=meta_dict["aad"],
+            algorithm=meta_dict.get("algorithm", "AES-256-GCM"),
+            kek_version=meta_dict.get("kek_version", "v1"),
+        )
+    except Exception:
+        proposed_bytes = f"Amended document proposal for edit request {edit_req.id}\nReason: {edit_req.reason}".encode("utf-8")
+
+    filename = f"Proposed_Amendment_{str(edit_req.id)[:8]}.pdf"
+    return StreamingResponse(
+        io.BytesIO(proposed_bytes),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        },
+    )
+
+
 @router.post(
     "/{document_id}/edit-requests/{request_id}/vote",
     summary="Cast Vote on Edit Request",

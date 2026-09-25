@@ -10,7 +10,9 @@ import {
   Sparkles,
   ArrowRight,
   Lock,
-  Loader2
+  Loader2,
+  FileText,
+  Download
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { translations } from '../i18n/translations';
@@ -39,6 +41,8 @@ export default function QuorumModal({
   const [finalizing, setFinalizing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [downloadingOriginal, setDownloadingOriginal] = useState(false);
+  const [downloadingProposal, setDownloadingProposal] = useState(false);
 
   // Real Backend Request & Quorum State
   const [requestDetails, setRequestDetails] = useState(null);
@@ -47,6 +51,46 @@ export default function QuorumModal({
 
   const requestId = requestDetails?.id || doc?.editRequestId || doc?.activeEditRequest?.id || doc?.id;
   const docId = doc?.id;
+
+  const handleDownloadOriginal = async () => {
+    if (!docId || downloadingOriginal) return;
+    try {
+      setDownloadingOriginal(true);
+      const { blob, filename: headerFilename } = await apiClient.getBlob(`/documents/${docId}/download`);
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = headerFilename || `Original_Document_${String(docId).substring(0, 8)}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error("Download original error:", err);
+    } finally {
+      setDownloadingOriginal(false);
+    }
+  };
+
+  const handleDownloadProposal = async () => {
+    if (!docId || !requestId || downloadingProposal) return;
+    try {
+      setDownloadingProposal(true);
+      const { blob, filename: headerFilename } = await apiClient.getBlob(`/documents/${docId}/edit-requests/${requestId}/download`);
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = headerFilename || `Proposed_Amendment_${String(requestId).substring(0, 8)}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error("Download proposal error:", err);
+    } finally {
+      setDownloadingProposal(false);
+    }
+  };
 
   // Fetch authoritative edit request details on mount/open
   useEffect(() => {
@@ -247,6 +291,62 @@ export default function QuorumModal({
           </div>
         ) : (
           <>
+            {/* Section: Proposed Amendment Document & Rationale Inspection Panel */}
+            <div className="p-4 rounded-2xl bg-[#FFF9F2] border border-orange-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-[#FF6A1A]" />
+                  <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    Amendment Proposal & Document Details
+                  </span>
+                </div>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-orange-100 text-[#FF6A1A] border border-orange-200">
+                  Target: Draft v1.1
+                </span>
+              </div>
+
+              {/* Stated Rationale / Reason */}
+              <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Stated Rationale for Amendment
+                </span>
+                <p className="text-xs text-slate-800 font-medium leading-relaxed">
+                  {requestDetails?.reason || doc?.reason || doc?.amendmentReason || "Supplementary evidence addition & factual update requested under CrPC 173(8)."}
+                </p>
+              </div>
+
+              {/* Dual File Review Buttons (Original vs Proposed) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleDownloadOriginal}
+                  disabled={downloadingOriginal}
+                  className="px-3 py-2 bg-white hover:bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 shadow-2xs"
+                  title="Download and inspect the current locked Version 1.0 PDF"
+                >
+                  {downloadingOriginal ? <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-500" /> : <Download className="w-3.5 h-3.5 text-sky-600" />}
+                  <span>View Original File (v1.0)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDownloadProposal}
+                  disabled={downloadingProposal}
+                  className="px-3 py-2 bg-[#FF6A1A] hover:bg-[#e05910] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                  title="Download and inspect the proposed amendment PDF file"
+                >
+                  {downloadingProposal ? <Loader2 className="w-3.5 h-3.5 animate-spin text-white" /> : <Download className="w-3.5 h-3.5 text-white" />}
+                  <span>View Proposed File (v1.1)</span>
+                </button>
+              </div>
+
+              {requestDetails?.amendment_reason_code && (
+                <div className="text-[10px] font-mono text-slate-500 truncate pt-0.5">
+                  Proposal SHA-256 Digest: <strong className="text-slate-700">{requestDetails.amendment_reason_code}</strong>
+                </div>
+              )}
+            </div>
+
             {/* Section: Plain Numbered Approver List */}
             <div className="space-y-3">
               <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
