@@ -1097,33 +1097,66 @@ async def cast_edit_request_vote(
             vote_choice=payload.vote_choice,
         )
     except HTTPException as err:
-        if err.status_code == 403:
+        # Always re-raise 403 (self-approval) and 409 (duplicate vote) to the client
+        if err.status_code in (403, 409):
             raise err
         logger.warning(f"Cast vote HTTP error: {err}")
     except Exception as err:
         logger.warning(f"Cast vote error: {err}")
 
-    # Synchronize status in PostgreSQL
     choice = payload.vote_choice.upper()
-    if choice == "APPROVE":
-        edit_req.status = "APPROVED"
+
+    # Determine authoritative status from Quorum Engine response.
+    # Only update local DB status when the engine confirms APPROVED or REJECTED.
+    # A single vote must NOT force APPROVED — quorum threshold must be satisfied.
+    engine_status = None
+    if vote_res and isinstance(vote_res, dict):
+        # The Node.js quorum engine returns: { success, data: { request: { status } } }
+        # or { success, request: { status } } depending on shape.
+        req_block = (
+            vote_res.get("data", {}).get("request")
+            or vote_res.get("request")
+            or {}
+        )
+        engine_status = req_block.get("status")
+
+    if engine_status in ("APPROVED", "REJECTED"):
+        # Quorum engine has made a final decision — sync to Postgres
+        new_status = engine_status
+    elif engine_status == "PENDING":
+        # Quorum not yet reached — keep request PENDING
+        new_status = "PENDING"
+    else:
+        # Engine offline / unknown — keep existing Postgres status unchanged
+        new_status = edit_req.status
+
+    if new_status != edit_req.status:
+        edit_req.status = new_status
         if edit_req.document:
-            edit_req.document.status = "APPROVED"
-            db.add(edit_req.document)
-    elif choice == "REJECT":
-        edit_req.status = "REJECTED"
-        if edit_req.document:
-            edit_req.document.status = "LOCKED"
+            if new_status == "APPROVED":
+                edit_req.document.status = "APPROVED"
+            elif new_status == "REJECTED":
+                edit_req.document.status = "LOCKED"
             db.add(edit_req.document)
 
+    event_type = "VOTE_CAST"
+    if new_status == "APPROVED":
+        event_type = "APPROVAL_GRANTED"
+    elif new_status == "REJECTED":
+        event_type = "APPROVAL_REJECTED"
+
     audit_log = AuditLog(
-        event_type="APPROVAL_GRANTED" if choice == "APPROVE" else "APPROVAL_REJECTED",
+        event_type=event_type,
         severity="INFO" if choice == "APPROVE" else "WARNING",
         actor_id=current_user.id,
         case_id=edit_req.document.case_id if edit_req.document else uuid.uuid4(),
         document_id=edit_req.document_id,
         version_id=edit_req.source_version_id,
-        metadata_json=json.dumps({"quorum_request_id": quorum_req_id, "vote_choice": choice}),
+        metadata_json=json.dumps({
+            "quorum_request_id": quorum_req_id,
+            "vote_choice": choice,
+            "engine_status": engine_status,
+        }),
         previous_hash="0" * 64,
         event_hash=quorum_req_id,
         log_hash=quorum_req_id,
@@ -1132,10 +1165,11 @@ async def cast_edit_request_vote(
     db.commit()
     db.refresh(edit_req)
 
-    return {
-        "success": True,
-        "status": edit_req.status,
-        "quorum_data": vote_res or {
+    # Build quorum_data for the frontend
+    if vote_res and isinstance(vote_res, dict):
+        quorum_payload = vote_res
+    else:
+        quorum_payload = {
             "status": edit_req.status,
             "request": {
                 "id": quorum_req_id,
@@ -1143,11 +1177,16 @@ async def cast_edit_request_vote(
                 "threshold_m": 2,
                 "pool_size_n": 3,
                 "vote_counts": {
-                    "approve": 2 if edit_req.status == "APPROVED" else 0,
-                    "reject": 1 if edit_req.status == "REJECTED" else 0
+                    "approve": 2 if edit_req.status == "APPROVED" else 1 if choice == "APPROVE" else 0,
+                    "reject": 1 if edit_req.status == "REJECTED" else 0,
                 }
             }
         }
+
+    return {
+        "success": True,
+        "status": edit_req.status,
+        "quorum_data": quorum_payload,
     }
 
 
@@ -1165,13 +1204,6 @@ async def finalize_edit_request(
     current_user: User = Depends(get_current_user),
 ):
     edit_req = _get_edit_request_or_fallback(db, document_id, request_id)
-    if not edit_req:
-        edit_req = (
-            db.query(EditRequest)
-            .filter(EditRequest.document_id == req_uuid)
-            .order_by(EditRequest.requested_at.desc())
-            .first()
-        )
     if not edit_req:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -1192,7 +1224,23 @@ async def finalize_edit_request(
     quorum_req_id = getattr(edit_req, "quorum_request_id", None) or str(request_id)
 
     # 2. Validate approved Quorum Token (Status MUST be APPROVED)
-    approved_data = await quorum_client.validate_approved_quorum_token(quorum_req_id)
+    # Fall back to local Postgres status when engine is offline or has lost in-memory state
+    try:
+        approved_data = await quorum_client.validate_approved_quorum_token(quorum_req_id)
+    except HTTPException as q_err:
+        if q_err.status_code in (503, 404):
+            if edit_req.status != "APPROVED":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Quorum not approved. Status: '{edit_req.status}'. Engine offline or lost state.",
+                )
+            logger.warning(
+                f"Quorum engine offline/lost state for '{quorum_req_id}'; "
+                f"proceeding based on Postgres status=APPROVED."
+            )
+            approved_data = {"id": quorum_req_id, "status": "APPROVED"}
+        else:
+            raise q_err
 
     # 3. Load associated Document & Source Version
     doc = db.query(Document).filter(Document.id == edit_req.document_id).first()
