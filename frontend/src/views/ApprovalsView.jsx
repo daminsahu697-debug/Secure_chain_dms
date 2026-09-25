@@ -94,9 +94,7 @@ export default function ApprovalsView({
     } catch (err) {
       console.error("Vote error in ApprovalsView:", err);
       let msg = err.message || 'Failed to record vote';
-      if (err.status === 403) {
-        msg = "Rule 4B Enforcement: You cannot approve your own edit request (Server 403).";
-      } else if (err.status === 409) {
+      if (err.status === 409) {
         msg = "Duplicate Vote: You have already voted on this amendment request.";
       }
       toast.error(msg);

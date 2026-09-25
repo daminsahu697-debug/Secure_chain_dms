@@ -132,7 +132,14 @@ class ApprovalService {
 
     // Check if voter is in approval pool
     const isMember = await this.db.isPoolMember(requestId, voterId);
+    
     if (!isMember) {
+      console.log('UNAUTHORIZED_APPROVER DEBUG:', {
+        requestId,
+        voterId,
+        requesterId: editReq.requester_id,
+        poolMembers: this.db.poolMembers,
+      });
       throw this._createError(
         `User '${voterId}' is not an authorized approver for request '${requestId}'.`,
         403,

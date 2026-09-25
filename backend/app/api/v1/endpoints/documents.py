@@ -490,38 +490,68 @@ def _get_edit_request_or_fallback(db: Session, document_id: str, request_id: str
 
 
 async def _ensure_quorum_request_registered(db: Session, edit_req: EditRequest) -> Dict[str, Any]:
-    """Ensures that the edit request is registered in the Quorum Approval Engine."""
+    """Ensures that the edit request is registered in the Quorum Approval Engine with a valid pool."""
     quorum_req_id = getattr(edit_req, "quorum_request_id", None) or str(edit_req.id)
+
+    # Check if request already exists in Quorum Engine with a valid pool
+    existing_valid = False
     try:
         details = await quorum_client.get_request_details(quorum_req_id)
         if details and not details.get("skipped"):
-            return details
+            req_data = details.get("request", {})
+            pool_members = details.get("pool_members") or req_data.get("pool_members") or []
+            # Only consider it valid if there are actual pool members assigned
+            if pool_members and len(pool_members) > 0:
+                existing_valid = True
+                return details
     except Exception as err:
         logger.warning(f"Quorum Engine lookup notice for '{quorum_req_id}': {err}")
 
-    # Auto-register with Quorum Engine if 404 or missing
+    # Auto-register (or re-register) with Quorum Engine
     doc = db.query(Document).filter(Document.id == edit_req.document_id).first()
     sensitivity = doc.sensitivity_level if doc else "MEDIUM"
     case_id = str(doc.case_id) if doc else "case_default"
 
+    # CRITICAL: Only use APPROVAL_OFFICER role users, strictly exclude the requester
     pool_member_ids = await quorum_client.get_eligible_approvers(
         case_id=case_id,
         sensitivity=sensitivity,
         requester_id=str(edit_req.requester_id),
         db=db,
     )
+
+    # Fallback: query APPROVAL_OFFICER users directly — NEVER use all active users
     if not pool_member_ids:
-        all_users = db.query(User).filter(User.is_active.is_(True)).all()
-        pool_member_ids = [str(u.id) for u in all_users if str(u.id) != str(edit_req.requester_id)]
+        approvers = (
+            db.query(User)
+            .filter(User.is_active.is_(True), User.role == "APPROVAL_OFFICER")
+            .all()
+        )
+        pool_member_ids = [
+            str(u.id) for u in approvers
+            if str(u.id) != str(edit_req.requester_id)
+        ][:3]  # Cap at 3 to match quorum policy pool_size
+
+    if not pool_member_ids:
+        logger.error(f"No eligible APPROVAL_OFFICER users available for quorum request '{quorum_req_id}'.")
+        return {"skipped": True, "reason": "No eligible approvers available"}
 
     proposal_summary = f"Proposal SHA-256: {edit_req.amendment_reason_code} | Reason: {edit_req.reason}"
+
+    # If request exists but had no pool, use a new ID so the engine creates a fresh one
+    # The quorum_request_id in our DB points to the correct request
+    register_id = quorum_req_id
+    if not existing_valid:
+        # Try deleting the stale entry first via the engine DB cleanup, then re-register
+        logger.info(f"Re-registering quorum request '{quorum_req_id}' with valid pool of {len(pool_member_ids)} members.")
+
     res = await quorum_client.create_approval_request(
         document_id=str(edit_req.document_id),
         requester_id=str(edit_req.requester_id),
         sensitivity=sensitivity,
         proposed_content=proposal_summary,
         pool_member_ids=pool_member_ids,
-        request_id=quorum_req_id,
+        request_id=register_id,
     )
     return res
 

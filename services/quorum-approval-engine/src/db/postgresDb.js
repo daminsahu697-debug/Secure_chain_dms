@@ -46,11 +46,17 @@ class PostgresDb {
     try {
       await client.query('BEGIN');
 
+      // UPSERT: If a request with this id already exists (e.g. stale/broken),
+      // reset it to PENDING and update its content.
       const res = await client.query(
         `INSERT INTO edit_requests
            (id, document_id, requester_id, proposed_content_summary,
             sensitivity_level, status)
          VALUES ($1, $2, $3, $4, $5, 'PENDING')
+         ON CONFLICT (id) DO UPDATE SET
+           status = 'PENDING',
+           proposed_content_summary = EXCLUDED.proposed_content_summary,
+           sensitivity_level = EXCLUDED.sensitivity_level
          RETURNING *`,
         [editReqData.id, editReqData.document_id, editReqData.requester_id,
          editReqData.proposed_content?.slice(0, 500) || '',
@@ -58,7 +64,13 @@ class PostgresDb {
       );
       const req = res.rows[0];
 
-      // Insert pool members
+      // Remove stale pool assignments first (handles re-registration case)
+      await client.query(
+        `DELETE FROM approval_assignments WHERE edit_request_id = $1`,
+        [editReqData.id]
+      );
+
+      // Insert fresh pool members
       for (const approverId of poolMemberIds) {
         await client.query(
           `INSERT INTO approval_assignments
@@ -80,6 +92,7 @@ class PostgresDb {
       client.release();
     }
   }
+
 
   async getEditRequest(requestId) {
     const res = await this.pool.query(
