@@ -49,33 +49,50 @@ export default function ApprovalsView({
   const defaultTab = userRole === 'POLICE' ? 'my_requests' : (initialTab || 'approvals');
   const [activeViewTab, setActiveViewTab] = useState(defaultTab);
 
-  const pendingDocs = documents.filter(d => d.status === 'PENDING_QUORUM' || d.status === 'PENDING');
-  
+  const pendingDocs = documents.filter(d => {
+    // Check doc status directly
+    const docPending = d.status === 'PENDING_QUORUM' || d.status === 'PENDING_AMENDMENT' || d.status === 'PENDING';
+    // Also check if there's an active edit request with PENDING status
+    const reqPending = d.activeEditRequest?.status === 'PENDING' || d.active_edit_request?.status === 'PENDING';
+    const hasEditReqId = !!(d.editRequestId || d.activeEditRequest?.id || d.active_edit_request?.id);
+    return docPending || (reqPending && hasEditReqId);
+  });
+
   // Split into own requests vs peer review requests
+  // Use the edit request's requester_id for accurate self-check
   const myRequests = pendingDocs.filter(d => {
-    const rId = d.requester_id || d.requesterId || d.uploaded_by || d.authorId || d.created_by;
-    return rId === activeUser?.id || (userRole === 'POLICE');
+    const activeReq = d.activeEditRequest || d.active_edit_request || {};
+    const rId = activeReq.requester_id || d.requester_id || d.requesterId || d.uploaded_by || d.authorId || d.created_by;
+    return rId === activeUser?.id || rId === activeUser?.employee_id || (userRole === 'POLICE');
   });
   const actionablePeerReviews = pendingDocs.filter(d => {
-    const rId = d.requester_id || d.requesterId || d.uploaded_by || d.authorId || d.created_by;
-    return rId !== activeUser?.id;
+    const activeReq = d.activeEditRequest || d.active_edit_request || {};
+    const rId = activeReq.requester_id || d.requester_id || d.requesterId || d.uploaded_by || d.authorId || d.created_by;
+    return rId !== activeUser?.id && rId !== activeUser?.employee_id;
   });
 
   const displayDocs = activeViewTab === 'my_requests' ? myRequests : (userRole === 'JUDICIAL' ? pendingDocs : actionablePeerReviews);
+
 
   const [expandedDocId, setExpandedDocId] = useState(displayDocs[0]?.id || null);
   const [votingId, setVotingId] = useState(null);
   const [voteComment, setVoteComment] = useState('');
 
   const handleCastVote = async (doc, voteType) => {
-    const requesterId = doc.requester_id || doc.requesterId || doc.uploaded_by || doc.authorId || doc.created_by;
-    if (activeUser && (String(activeUser.id) === String(requesterId) || String(activeUser.employee_id) === String(requesterId))) {
+    // Self-vote check: use the edit request's requester_id, NOT the doc uploader
+    const activeReq = doc.activeEditRequest || doc.active_edit_request || {};
+    const requesterId = activeReq.requester_id || doc.requester_id || doc.requesterId;
+    if (activeUser && requesterId && (
+      String(activeUser.id) === String(requesterId) ||
+      String(activeUser.employee_id) === String(requesterId)
+    )) {
       toast.error("Rule 4B Enforcement: You cannot approve your own edit request.");
       return;
     }
 
-    const requestId = doc.editRequestId || doc.activeEditRequest?.id || doc.id;
+    const requestId = doc.editRequestId || activeReq.id || doc.activeEditRequest?.id || doc.id;
     setVotingId(doc.id);
+
 
     try {
       const res = await apiClient.post(`/documents/${doc.id}/edit-requests/${requestId}/vote`, {
