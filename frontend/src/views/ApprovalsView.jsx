@@ -268,9 +268,6 @@ export default function ApprovalsView({
 
               const isExpanded = expandedDocId === doc.id;
               const isRequester = activeUser && (activeUser.id === doc.requesterId || activeUser.id === doc.authorId);
-              const approvalCount = session.approvalCount || 0;
-              const threshold = session.threshold || 2;
-              const totalEligible = session.totalEligible || 3;
               const progressPct = Math.min(100, Math.round((approvalCount / threshold) * 100));
 
               return (
