@@ -41,10 +41,10 @@ app.add_middleware(
 )
 
 # Mount all route groups
-app.include_router(auth_router)
-app.include_router(cases_router)
-app.include_router(documents_router)
-app.include_router(verify_router)
+app.include_router(auth_router, prefix="/api/v1")
+app.include_router(cases_router, prefix="/api/v1")
+app.include_router(documents_router, prefix="/api/v1")
+app.include_router(verify_router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["Health"])

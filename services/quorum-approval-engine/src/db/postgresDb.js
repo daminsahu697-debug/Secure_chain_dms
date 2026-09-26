@@ -8,7 +8,7 @@ const { Pool } = require('pg');
 class PostgresDb {
   constructor() {
     this.pool = new Pool({
-      connectionString: process.env.DATABASE_URL || 'postgresql://postgres.mkgjjgrgwodcctyagkrt:Shreyash%401234@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres',
+      connectionString: process.env.DATABASE_URL || 'postgresql://postgres.buvjudpqfzscxoeqwnay:Securechaindms%40123@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres',
     });
   }
 
@@ -46,45 +46,37 @@ class PostgresDb {
     try {
       await client.query('BEGIN');
 
-      // UPSERT: If a request with this id already exists (e.g. stale/broken),
-      // reset it to PENDING and update its content.
-      const res = await client.query(
-        `INSERT INTO edit_requests
-           (id, document_id, requester_id, proposed_content_summary,
-            sensitivity_level, status)
-         VALUES ($1, $2, $3, $4, $5, 'PENDING')
-         ON CONFLICT (id) DO UPDATE SET
-           status = 'PENDING',
-           proposed_content_summary = EXCLUDED.proposed_content_summary,
-           sensitivity_level = EXCLUDED.sensitivity_level
-         RETURNING *`,
-        [editReqData.id, editReqData.document_id, editReqData.requester_id,
-         editReqData.proposed_content?.slice(0, 500) || '',
-         editReqData.sensitivity_tier || 'MEDIUM']
-      );
-      const req = res.rows[0];
-
-      // Remove stale pool assignments first (handles re-registration case)
+      // The Python backend already created the edit_requests row with all required fields.
+      // Here we ONLY manage the approval_assignments pool.
+      // First, remove stale pool assignments (handles re-registration case)
       await client.query(
         `DELETE FROM approval_assignments WHERE edit_request_id = $1`,
         [editReqData.id]
       );
 
-      // Insert fresh pool members
+      // Insert fresh pool members using actual schema (no pseudonym column)
       for (const approverId of poolMemberIds) {
         await client.query(
           `INSERT INTO approval_assignments
-             (edit_request_id, approver_id, pseudonym, status)
-           VALUES ($1, $2, $3, 'PENDING')`,
-          [editReqData.id, approverId, pseudonymsMap[approverId]]
+             (id, edit_request_id, approver_id, anonymous_token, status)
+           VALUES (gen_random_uuid(), $1, $2::uuid, gen_random_uuid(), 'PENDING')
+           ON CONFLICT DO NOTHING`,
+          [editReqData.id, approverId]
         );
       }
 
       await client.query('COMMIT');
-      req.threshold_m = editReqData.threshold_m;
-      req.pool_size_n = editReqData.pool_size_n;
-      req.requester_id = editReqData.requester_id;
-      return req;
+
+      // Return a synthetic row matching expected shape
+      return {
+        id: editReqData.id,
+        document_id: editReqData.document_id,
+        requester_id: editReqData.requester_id,
+        status: 'PENDING',
+        threshold_m: editReqData.threshold_m,
+        pool_size_n: editReqData.pool_size_n,
+        sensitivity_level: editReqData.sensitivity_tier || 'MEDIUM',
+      };
     } catch (e) {
       await client.query('ROLLBACK');
       throw e;
@@ -95,19 +87,24 @@ class PostgresDb {
 
 
   async getEditRequest(requestId) {
+    // Use actual schema: join via quorum_policy_id, fallback to MEDIUM policy if null
     const res = await this.pool.query(
       `SELECT er.*,
-              qp.required_approvals AS threshold_m,
-              qp.pool_size          AS pool_size_n
+              COALESCE(qp.required_approvals, 2) AS threshold_m,
+              COALESCE(qp.pool_size, 3)          AS pool_size_n,
+              COALESCE(qp.sensitivity_level, 'MEDIUM') AS sensitivity_level
        FROM edit_requests er
-       LEFT JOIN quorum_policies qp ON qp.sensitivity_level = er.sensitivity_level
+       LEFT JOIN quorum_policies qp ON qp.id = er.quorum_policy_id
        WHERE er.id = $1`,
       [requestId]
     );
     const row = res.rows[0];
     if (!row) return null;
-    row.threshold_m = row.threshold_m || 1;
-    row.pool_size_n = row.pool_size_n || 1;
+    row.threshold_m = row.threshold_m || 2;
+    row.pool_size_n = row.pool_size_n || 3;
+    row.sensitivity_level = row.sensitivity_level || 'MEDIUM';
+    // Normalize requester_id field name
+    row.requester_id = row.requester_id;
     return row;
   }
 
@@ -122,8 +119,10 @@ class PostgresDb {
 
   // --- Pool Members ---
   async getPoolMembers(requestId) {
+    // actual schema has no pseudonym column — generate one from approver_id
     const res = await this.pool.query(
-      `SELECT approver_id AS user_id, pseudonym
+      `SELECT approver_id AS user_id,
+              CONCAT('Approver-', SUBSTRING(approver_id::text, 1, 8)) AS pseudonym
        FROM approval_assignments WHERE edit_request_id = $1`,
       [requestId]
     );
@@ -133,7 +132,7 @@ class PostgresDb {
   async isPoolMember(requestId, userId) {
     const res = await this.pool.query(
       `SELECT 1 FROM approval_assignments
-       WHERE edit_request_id = $1 AND approver_id = $2 LIMIT 1`,
+       WHERE edit_request_id = $1 AND approver_id = $2::uuid LIMIT 1`,
       [requestId, userId]
     );
     return res.rows.length > 0;
@@ -141,31 +140,60 @@ class PostgresDb {
 
   // --- Votes ---
   async addVote(voteData) {
-    // Check for duplicate
-    const dup = await this.pool.query(
-      `SELECT 1 FROM approvals WHERE edit_request_id = $1 AND approver_id = $2`,
+    // Find the assignment_id for this approver on this request
+    const assignRes = await this.pool.query(
+      `SELECT id FROM approval_assignments
+       WHERE edit_request_id = $1 AND approver_id = $2::uuid LIMIT 1`,
       [voteData.request_id, voteData.voter_user_id]
     );
-    if (dup.rows.length > 0) {
-      const err = new Error('Duplicate vote');
-      err.code = 'DUPLICATE_VOTE';
-      throw err;
+
+    // Check for duplicate via approvals table (keyed by assignment_id)
+    let assignmentId = assignRes.rows[0]?.id;
+    if (assignmentId) {
+      const dup = await this.pool.query(
+        `SELECT 1 FROM approvals WHERE assignment_id = $1`,
+        [assignmentId]
+      );
+      if (dup.rows.length > 0) {
+        const err = new Error('Duplicate vote');
+        err.code = 'DUPLICATE_VOTE';
+        throw err;
+      }
+    } else {
+      // No assignment yet — create one on the fly
+      const newAssign = await this.pool.query(
+        `INSERT INTO approval_assignments (id, edit_request_id, approver_id, anonymous_token, status)
+         VALUES (gen_random_uuid(), $1, $2::uuid, gen_random_uuid(), 'PENDING')
+         RETURNING id`,
+        [voteData.request_id, voteData.voter_user_id]
+      );
+      assignmentId = newAssign.rows[0].id;
     }
 
+    // Insert approval record (actual schema: id, assignment_id, decision, remarks, approved_at)
     const res = await this.pool.query(
-      `INSERT INTO approvals (id, edit_request_id, approver_id, decision, pseudonym)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [voteData.id, voteData.request_id, voteData.voter_user_id,
-       voteData.vote_choice, voteData.voter_pseudonym]
+      `INSERT INTO approvals (id, assignment_id, decision, remarks, approved_at)
+       VALUES (gen_random_uuid(), $1, $2, $3, NOW()) RETURNING *`,
+      [assignmentId, voteData.vote_choice, voteData.voter_pseudonym || null]
     );
-    return res.rows[0];
+    // Update assignment status
+    await this.pool.query(
+      `UPDATE approval_assignments SET status = $1 WHERE id = $2`,
+      [voteData.vote_choice, assignmentId]
+    );
+    return { ...res.rows[0], vote_choice: voteData.vote_choice };
   }
 
   async getVotes(requestId) {
+    // Actual schema: approvals links via assignment_id -> approval_assignments
     const res = await this.pool.query(
-      `SELECT id, approver_id AS voter_user_id, decision AS vote_choice,
-              pseudonym AS voter_pseudonym
-       FROM approvals WHERE edit_request_id = $1`,
+      `SELECT ap.id,
+              aa.approver_id AS voter_user_id,
+              ap.decision AS vote_choice,
+              CONCAT('Approver-', SUBSTRING(aa.approver_id::text, 1, 8)) AS voter_pseudonym
+       FROM approvals ap
+       JOIN approval_assignments aa ON aa.id = ap.assignment_id
+       WHERE aa.edit_request_id = $1`,
       [requestId]
     );
     return res.rows;

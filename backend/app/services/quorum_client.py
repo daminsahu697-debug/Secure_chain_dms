@@ -182,8 +182,11 @@ class QuorumClient:
             if u.role and u.role == "APPROVAL_OFFICER":
                 eligible_ids.append(u_id_str)
 
-        # Pool size N configured to 3 for the demo
-        pool_n = 3
+        # Fetch dynamic pool_n based on sensitivity from quorum_policies table
+        from app.models.approval import QuorumPolicy
+        policy = db.query(QuorumPolicy).filter(QuorumPolicy.sensitivity_level == sensitivity).first()
+        pool_n = policy.pool_size if policy else 1
+
         effective_n = min(pool_n, len(eligible_ids))
 
         return eligible_ids[:effective_n]

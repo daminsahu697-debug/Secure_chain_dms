@@ -8,7 +8,7 @@ import bcrypt
 
 def hash_pwd(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-conn = psycopg2.connect("postgresql://postgres.mkgjjgrgwodcctyagkrt:Shreyash%401234@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres")
+conn = psycopg2.connect("postgresql://postgres.buvjudpqfzscxoeqwnay:Securechaindms%40123@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres")
 cur  = conn.cursor()
 
 # Fetch all role IDs
@@ -137,9 +137,9 @@ for u in users:
     try:
         cur.execute("""
             INSERT INTO users
-              (id, full_name, employee_id, email, password_hash, role_id, jurisdiction, is_active)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, TRUE)
-            ON CONFLICT (employee_id) DO NOTHING
+              (id, full_name, employee_id, email, password_hash, role_id, jurisdiction, is_active, failed_logins)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, TRUE, 0)
+            ON CONFLICT (employee_id) DO UPDATE SET password_hash = EXCLUDED.password_hash
         """, (uid, u["name"], u["employee_id"], u["email"], hash, rid, u["jurisdiction"]))
         conn.commit()
         print(f"[OK] {u['role']:<30} | ID: {u['employee_id']:<18} | Pass: {u['password']}")

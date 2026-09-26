@@ -110,7 +110,7 @@ export default function DashboardView({
           { id: 'overview', label: 'Home', icon: Home, badge: null },
           { id: 'cases', label: 'My Cases', icon: FolderArchive, badge: myCasesCount || null },
           { id: 'upload', label: 'Upload New FIR', icon: UploadCloud, badge: null },
-          { id: 'my_requests', label: 'My Requests (Quorum Status)', icon: FileCheck, badge: pendingCount || null },
+          { id: 'approvals', label: 'Quorum Approval', icon: FileCheck2, badge: pendingCount || null },
           { id: 'settings', label: 'Settings', icon: Settings, badge: null }
         ];
       case 'JUDICIAL':
@@ -129,7 +129,6 @@ export default function DashboardView({
           { id: 'upload', label: 'Upload New Report', icon: UploadCloud, badge: null },
           { id: 'ocr', label: 'OCR/Analysis Queue', icon: Layers, badge: 3 },
           { id: 'custody', label: 'Evidence Chain of Custody', icon: PackageCheck, badge: '2 Sealed' },
-          { id: 'my_requests', label: 'My Requests (Quorum Status)', icon: FileCheck, badge: pendingCount || null },
           { id: 'approvals', label: 'Quorum Approval', icon: FileCheck2, badge: pendingCount || null },
           { id: 'settings', label: 'Settings', icon: Settings, badge: null }
         ];
@@ -139,7 +138,6 @@ export default function DashboardView({
           { id: 'cases', label: 'My Cases', icon: FolderArchive, badge: myCasesCount || null },
           { id: 'upload', label: 'Upload New FIR', icon: UploadCloud, badge: null },
           { id: 'approvals', label: 'Quorum Approval', icon: FileCheck2, badge: pendingCount || null },
-          { id: 'my_requests', label: 'My Requests (Quorum Status)', icon: FileCheck, badge: pendingCount || null },
           { id: 'settings', label: 'Settings', icon: Settings, badge: null }
         ];
       default:

@@ -2,14 +2,15 @@
 routes/auth.py — Login, logout, and token refresh endpoints.
 """
 import uuid
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from passlib.context import CryptContext
+import bcrypt
 from database import db_cursor
 from auth.jwt_handler import create_access_token, create_refresh_token, decode_token
+from auth.rbac import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 
 
 class LoginRequest(BaseModel):
@@ -34,7 +35,7 @@ class RefreshRequest(BaseModel):
 def login(body: LoginRequest):
     with db_cursor() as cur:
         cur.execute("""
-            SELECT u.id, u.name, u.employee_id, u.password_hash, u.is_active,
+            SELECT u.id, u.full_name AS name, u.employee_id, u.password_hash, u.is_active,
                    r.name AS role
             FROM users u
             JOIN roles r ON r.id = u.role_id
@@ -46,7 +47,7 @@ def login(body: LoginRequest):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     if not user["is_active"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is deactivated")
-    if not pwd_context.verify(body.password, user["password_hash"]):
+    if not bcrypt.checkpw(body.password.encode(), user["password_hash"].encode()):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     token_data = {
@@ -79,3 +80,22 @@ def refresh_token(body: RefreshRequest):
         "name": payload.get("name", ""),
         "employee_id": payload.get("employee_id", ""),
     }
+
+
+@router.get("/me")
+def get_me(current_user: dict = Depends(get_current_user)):
+    """Return the current authenticated user's profile."""
+    with db_cursor() as cur:
+        cur.execute("""
+            SELECT u.id, u.full_name AS name, u.employee_id, u.email,
+                   u.jurisdiction, u.is_active,
+                   r.name AS role
+            FROM users u
+            JOIN roles r ON r.id = u.role_id
+            WHERE u.id = %s::uuid
+        """, (current_user["sub"],))
+        user = cur.fetchone()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return dict(user)
+

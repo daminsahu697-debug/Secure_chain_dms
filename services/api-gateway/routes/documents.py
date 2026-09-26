@@ -53,6 +53,66 @@ UPLOAD_ALLOWED_ROLES = (
 )
 
 
+# ------------------------------------------------------------------
+# GET /documents — Flat list of all documents for current user
+# ------------------------------------------------------------------
+@router.get("/documents")
+def list_all_documents(current_user: dict = Depends(get_current_user)):
+    """Return all documents accessible to the current user."""
+    with db_cursor() as cur:
+        cur.execute("""
+            SELECT d.id, d.title, d.document_type, d.sensitivity_level,
+                   d.status, d.created_at, d.case_id,
+                   dv.version_number, dv.chain_hash AS sha256_hash
+            FROM documents d
+            LEFT JOIN document_versions dv ON dv.id = d.current_version_id
+            WHERE d.created_by = %s::uuid
+               OR d.case_id IN (
+                   SELECT case_id FROM case_participants
+                   WHERE participant_id = %s::uuid AND removed_at IS NULL
+               )
+            ORDER BY d.created_at DESC
+        """, (current_user["sub"], current_user["sub"]))
+        docs = cur.fetchall()
+
+    # Also fetch active edit requests for each document
+    items = []
+    for d in docs:
+        doc = dict(d)
+        with db_cursor() as cur2:
+            cur2.execute("""
+                SELECT id, status, requester_id
+                FROM edit_requests
+                WHERE document_id = %s::uuid AND status = 'PENDING'
+                ORDER BY created_at DESC LIMIT 1
+            """, (doc["id"],))
+            req = cur2.fetchone()
+            if req:
+                doc["active_edit_request"] = dict(req)
+                doc["active_edit_request_id"] = req["id"]
+        items.append(doc)
+
+    return {"items": items, "total": len(items)}
+
+
+# ------------------------------------------------------------------
+# GET /personas — Role persona definitions for the UI
+# ------------------------------------------------------------------
+@router.get("/personas")
+def get_personas():
+    """Return static role persona definitions for the frontend portal."""
+    return {
+        "personas": [
+            {"id": "POLICE", "label": "Police Officer", "prefix": ["DL-IO", "DL-SHO", "DL-SPO", "POL"]},
+            {"id": "FORENSIC", "label": "Forensic Expert", "prefix": ["DL-FE", "DL-FLH", "DL-FA", "FSL"]},
+            {"id": "JUDICIAL", "label": "Judicial Officer", "prefix": ["DL-MAG", "DL-JDG", "DL-PP", "DL-CR"]},
+            {"id": "AUDITOR", "label": "System Auditor", "prefix": ["SYS-AUD", "SYS-SUPER", "SYS-ADMIN"]},
+        ]
+    }
+
+
+
+
 def _check_dsc(user_id: str) -> None:
     """Verify that the officer has a valid, non-expired DSC certificate."""
     with db_cursor() as cur:

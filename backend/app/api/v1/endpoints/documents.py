@@ -18,6 +18,7 @@ from app.models.document_version import DocumentVersion
 from app.models.tamper_alert import TamperAlert
 from app.models.audit_log import AuditLog
 from app.models.edit_request import EditRequest
+from app.models.approval import ApprovalAssignment, Approval
 from app.schemas.document import DocumentResponse, DocumentListResponse
 from app.schemas.document_version import DocumentVersionResponse, DocumentVersionHistoryResponse
 from app.schemas.edit_request import EditRequestResponse, VoteRequest
@@ -1080,6 +1081,22 @@ async def create_edit_request(
     )
     db.add(edit_req)
 
+    # 6a. Explicitly record approval assignments in PostgreSQL for tracking approvers
+    for approver_id_str in pool_member_ids:
+        try:
+            app_user_uuid = uuid.UUID(approver_id_str)
+        except (ValueError, TypeError):
+            continue
+        assignment = ApprovalAssignment(
+            id=uuid.uuid4(),
+            edit_request_id=edit_req_id,
+            approver_id=app_user_uuid,
+            anonymous_token=uuid.uuid4(),
+            status="PENDING",
+            assigned_at=datetime.now(timezone.utc),
+        )
+        db.add(assignment)
+
     # 6b. Transition document status to PENDING_QUORUM so it surfaces across all approver dashboards
     doc.status = "PENDING_QUORUM"
     db.add(doc)
@@ -1266,6 +1283,37 @@ async def cast_edit_request_vote(
             elif new_status == "REJECTED":
                 edit_req.document.status = "LOCKED"
             db.add(edit_req.document)
+
+    # Record assignment status & vote approval decision in PostgreSQL DB
+    assignment = db.query(ApprovalAssignment).filter(
+        ApprovalAssignment.edit_request_id == edit_req.id,
+        ApprovalAssignment.approver_id == current_user.id
+    ).first()
+    if not assignment:
+        assignment = ApprovalAssignment(
+            id=uuid.uuid4(),
+            edit_request_id=edit_req.id,
+            approver_id=current_user.id,
+            anonymous_token=uuid.uuid4(),
+            status=choice,
+            assigned_at=datetime.now(timezone.utc),
+        )
+        db.add(assignment)
+        db.flush()
+    else:
+        assignment.status = choice
+        db.add(assignment)
+
+    existing_app = db.query(Approval).filter(Approval.assignment_id == assignment.id).first()
+    if not existing_app:
+        approval_rec = Approval(
+            id=uuid.uuid4(),
+            assignment_id=assignment.id,
+            decision=choice,
+            remarks=getattr(payload, 'remarks', None),
+            approved_at=datetime.now(timezone.utc),
+        )
+        db.add(approval_rec)
 
     event_type = "VOTE_CAST"
     if new_status == "APPROVED":

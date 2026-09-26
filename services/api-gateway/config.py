@@ -11,7 +11,7 @@ load_dotenv()
 
 class Settings(BaseSettings):
     # --- Database ---
-    database_url: str = "postgresql://postgres.mkgjjgrgwodcctyagkrt:Shreyash%401234@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres"
+    database_url: str = "postgresql://postgres.buvjudpqfzscxoeqwnay:Securechaindms%40123@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
 
     # --- JWT ---
     jwt_secret_key: str = "securechain-sih26190-super-secret-key-change-in-production"

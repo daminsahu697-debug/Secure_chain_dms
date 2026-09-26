@@ -12,8 +12,8 @@ function createApp(customDb = null) {
   const app = express();
   app.use(express.json());
 
-  // Use MemoryDb with PG-backed document lookup
-  const db = customDb || new MemoryDb();
+  // Use PostgresDb with PG-backed document lookup
+  const db = customDb || new PostgresDb();
   const approvalService = new ApprovalService(db);
   const auditService = new AuditService(db);
   const approvalController = new ApprovalController(approvalService, auditService, db);

@@ -422,9 +422,7 @@ export default function Navbar({
                 >
                   <FileCheck2 className="w-4 h-4" />
                   <span>
-                    {activeUser.portalRole === 'POLICE' 
-                      ? (lang === 'hi' ? 'मेरे अनुरोध (कोरम स्थिति)' : 'My Requests (Quorum Status)') 
-                      : (lang === 'hi' ? 'कोरम अनुमोदन' : 'Quorum Approval')}
+                    {lang === 'hi' ? 'कोरम अनुमोदन' : 'Quorum Approval'}
                   </span>
                 </button>
               )}
