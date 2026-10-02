@@ -8,7 +8,6 @@ import {
   UserX, 
   ShieldAlert, 
   Sparkles,
-  ArrowRight,
   Lock,
   Loader2,
   FileText,
@@ -33,7 +32,6 @@ export default function QuorumModal({
   activeUser, 
   onVoteSuccess, 
   onFinalizeSuccess,
-  onSwitchUser,
   lang = 'en'
 }) {
   const t = translations[lang] || translations.en;
@@ -438,26 +436,14 @@ export default function QuorumModal({
             {status === 'PENDING' ? (
               <div className="space-y-3 pt-2">
                 {isRequester ? (
-                  <div className="text-center p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-                    <p className="text-xs text-slate-500">
-                      Switch to an authorized supervisory reviewer account to cast a vote:
-                    </p>
-                    <div className="flex justify-center gap-2">
-                      <button
-                        onClick={() => onSwitchUser && onSwitchUser('APP001')}
-                        className="px-3 py-1.5 bg-[#4FA8E0] hover:bg-[#3B97D1] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1"
-                      >
-                        <span>Switch to Approver 1 (APP001)</span>
-                        <ArrowRight className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => onSwitchUser && onSwitchUser('APP002')}
-                        className="px-3 py-1.5 bg-[#2E7D32] hover:bg-[#1B5E20] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1"
-                      >
-                        <span>Switch to Approver 2 (APP002)</span>
-                        <ArrowRight className="w-3 h-3" />
-                      </button>
+                  <div className="text-center p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-1">
+                    <div className="flex items-center justify-center gap-2 text-amber-700">
+                      <ShieldAlert className="w-4 h-4" />
+                      <span className="text-xs font-bold">Rule 4B Enforcement</span>
                     </div>
+                    <p className="text-xs text-amber-600">
+                      Requester cannot approve own request. You are logged in as the Investigating Officer who initiated this amendment. Server-side API blocks self-approvals with 403 Forbidden.
+                    </p>
                   </div>
                 ) : isApprovalOfficer ? (
                   <div className="flex items-center gap-3">

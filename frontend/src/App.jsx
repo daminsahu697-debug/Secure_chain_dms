@@ -787,8 +787,9 @@ function AppContent() {
           activeUser={activeUser}
           onVoteSuccess={handleVoteSuccess}
           onFinalizeSuccess={handleFinalizeSuccess}
-          onSwitchUser={handleDemoApproverLogin}
+          lang={lang}
         />
+
       )}
 
       {shortcutsOpen && (
